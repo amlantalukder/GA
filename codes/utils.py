@@ -56,3 +56,15 @@ def getSettings(file_name):
     # Get GA settings
     #-----------------------------------------------
     return dict([item.split(' :') for item in data[:15]])
+
+# -----------------------------------------------
+def showPercBar(counter, size, perc, perc_inc=10):
+    num_prints = 100 // perc_inc
+    progress = int(counter * 10 / size) * 10
+    if progress >= perc:
+        sys.stdout.write('=' * (int((progress - perc) // num_prints) + 1))
+        sys.stdout.flush()
+        if progress >= 100:
+            print('100%')
+        perc = progress + perc_inc
+    return perc

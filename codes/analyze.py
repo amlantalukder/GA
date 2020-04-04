@@ -10,10 +10,10 @@ def plot(x, y, legends, title='', x_label='', y_label='', file_name='plot'):
     fig1, ax1 = plt.subplots(figsize=(12,8))
     ax1.set_title(title, fontsize=28)
 
-    line_styles = ['-', '--', '-.', ':']
+    line_styles = ['-', ':']
 
-    for i in range(len(y)):
-        ax1.plot(x, y[i], c='k', ls=line_styles[i], lw=2)
+    ax1.errorbar(x, y[0], yerr=y[1], c='k', ls=line_styles[0], lw=2)
+    ax1.errorbar(x, y[2], yerr=y[3], c='k', ls=line_styles[1], lw=2)
 
     ax1.legend(legends, fontsize=20)
     ax1.set_xlabel(x_label, fontsize=25)
@@ -29,11 +29,12 @@ def plotComparison(x, y, legends, title='', x_label='', y_label='', file_name='p
     fig1, ax1 = plt.subplots(figsize=(20,10))
     ax1.set_title(title, fontsize=28)
 
-    colors = ['r', 'g', 'b', 'k', 'c', 'y']
+    colors = ['g', 'b']
+    line_styles = ['-', ':']
 
-    for i in range(0, len(y), 2):
-        ax1.plot(x, y[i], c=colors[i//2], ls='-', lw=2)
-        ax1.plot(x, y[i+1], c=colors[(i+1)//2], ls='--', lw=2)
+    for i in range(len(y)):
+        ax1.errorbar(x, y[i][0], yerr=y[i][1], c=colors[i], ls=line_styles[0], lw=2)
+        ax1.errorbar(x, y[i][2], yerr=y[i][3], c=colors[i], ls=line_styles[1], lw=2)
 
     ax1.margins(0)
     ax1.legend(legends, bbox_to_anchor=(1, 0.5), loc='center left', fontsize=20)
@@ -55,19 +56,18 @@ def mean_confidence_interval(data, confidence=0.95):
 
 # ------------------------------------
 def printDec(msg):
-
-    horizontal_border = '_'*50
+    horizontal_border = '_' * 50
     vertical_border = '|'
 
     l = len(horizontal_border)
 
     print(horizontal_border)
-    print(' '*l)
-    msg_part = msg
-    while len(msg_part) >= l-4:
-        print(vertical_border + ' ' + msg_part[:l-4] + ' ' + vertical_border)
-        msg_part = msg_part[l-4:]
-    print(vertical_border + ' ' + msg_part + ' '*(l-3-len(msg_part)) + vertical_border)
+    print(' ' * l)
+    msg_part = msg.strip()
+    while len(msg_part) >= l - 4:
+        print(vertical_border + ' ' + msg_part[:l - 4] + ' ' + vertical_border)
+        msg_part = msg_part[l - 4:].strip()
+    print(vertical_border + ' ' + msg_part + ' ' * (l - 3 - len(msg_part)) + vertical_border)
     print(horizontal_border)
     print("")
 
@@ -118,7 +118,7 @@ def analyze(file_name):
     # -----------------------------------------------
     # Separate best results from all results
     # -----------------------------------------------
-    best_fitness = size_gene
+    optimum_fitness = None
     best_path = data[-(num_gens + 2)][0]
     best_raw_fitness = float(data[-(num_gens + 2)][1])
 
@@ -136,17 +136,18 @@ def analyze(file_name):
     best_indices = []
 
     stats = [[] for i in range(num_runs)]
-    
-    for counter in range(len(data)):
-        if data[counter][0] == 'B':
-            best_individual = data[counter+1][0]
-            best_fitness = data[counter+1][1]
-        item = data[counter]
+
+    gen_counter = 0
+    for item in data:
         if item[0] != 'R':
             continue
         i = int(item[1])-1
-        stats[i].append([float(item[4]), float(item[5]), float(item[6])])
-        if stats[i][-1][0] == best_fitness:
+        try:
+            stats[i].append([float(item[4]), float(item[5]), float(item[6])])
+        except:
+            pdb.set_trace()
+
+        if optimum_fitness and stats[i][-1][0] == optimum_fitness:
             best_indices.append(len(stats[i])-1)
 
     #-----------------------------------------------
@@ -157,59 +158,92 @@ def analyze(file_name):
          [np.std([stats[i][j][0] for i in range(num_runs)]) for j in range(num_gens)], \
          [np.average([stats[i][j][1] for i in range(num_runs)]) for j in range(num_gens)], \
          [np.std([stats[i][j][1] for i in range(num_runs)]) for j in range(num_gens)]]
-    legends = ['Avg best fitness', 'Std dev (best fitness)', 'Avg avg fitness', 'Std dev (avg fitness)']
+    legends = ['Avg best fitness', 'Avg avg fitness']
 
-    plot_file_name = file_name.split('/')[-1][:-3]
-    #plot(x, y, legends, title='', x_label='Number of generations', y_label='Fitness', file_name='{}/{}'.format(results_dir, plot_file_name))
-    
     #-----------------------------------------------
     # Average best fitness and standard deviation
     # over all runs
     #-----------------------------------------------
-    best_fitness_all_runs = [max([stats[i][j][0] for j in range(num_gens)]) for i in range(num_runs)]
-    #print(mean_confidence_interval(best_fitness_all_runs))
+    best_fitness_all_runs = [min([stats[i][j][0] for j in range(num_gens)]) for i in range(num_runs)]
+    conf_int = mean_confidence_interval(best_fitness_all_runs)
+    best_fitness = min(best_fitness_all_runs)
+    best_fitness_stat = [best_fitness] + list(conf_int)
 
-    print(best_individual)
-    #print('Best individual {}, best fitness {}'.format(best_individual, best_fitness))
-    #print('Best fitness: ', max(best_fitness_all_runs))
+    #print('Best fitness: ', best_fitness)
 
     if len(best_indices) > 0:
         print('Earliest generation to achieve best fitness: ', best_indices[0])
         print('Best fitness achieving generation stats: ', mean_confidence_interval(best_indices))
 
-    return x, [y[0], y[2]], [legends[0], legends[2]], stats
+    return x, y, legends, best_fitness_stat
 
 #-----------------------------------------------
-# Parameter file and results path
-#-----------------------------------------------
-param_file_dir = 'IPD_GA/cap5512.code'
-results_dir = 'results'
+header = ['Rep', 'Data set', 'Best Fitness', 'Average Best Fitness', 'Std Dev Best Fitness', '95% confidence interval', 'Param File']
 
-#-----------------------------------------------
-# Get the settings from the default param file
-# to compare the settings of other param files,
-# to report what parameters were changed.
-#-----------------------------------------------
-settings_default = getSettings('{}/ipd.params'.format(param_file_dir))
+reprs = ['Representation_1', 'Representation_2']
+repr_suff = ['Rep 1', 'Rep 2']
 
-#-----------------------------------------------
-# Compare results of different GAs defined by
-# different param files
-#-----------------------------------------------
-y_all, legends_all = [], []
+plot_compare_info = {}
 
-param_file_paths = [f for f in os.listdir('IPD_GA/') if os.path.isfile(os.path.join('IPD_GA', f)) and f.split('_')[0] == 'exp-2' and f.split('_')[-1] == 'summary.txt']
+for i in range(len(reprs)):
 
-for param_file_path in param_file_paths:
+    #-----------------------------------------------
+    # Parameter file and results path
+    #-----------------------------------------------
+    param_file_dir = 'codes/{}'.format(reprs[i])
+    results_dir = 'results'
 
-    info = dict([item.split('-') for item in param_file_path.split('_')[:-1]])
-    #printDec(param_file_path)
-    x, y, l, _ = analyze('IPD_GA/{}'.format(param_file_path))
-    y_all += y
-    legends_all += ['{} (mem {}, xover {}, mut {}, games {})'.format(item, info['mem'], info['xrate'], info['mrate'], info['ng']) for item in l]
+    #-----------------------------------------------
+    # Get the settings from the default param file
+    # to compare the settings of other param files,
+    # to report what parameters were changed.
+    #-----------------------------------------------
+    #settings_default = getDefaultSettings('{}/TSP.params'.format(param_file_dir))
+
+    #-----------------------------------------------
+    # Run analysis on results of GA run by different
+    # settings.
+    #-----------------------------------------------
+    param_files_all = [item for item in os.listdir(param_file_dir) if os.path.isfile(os.path.join(param_file_dir, item)) and item.split('.')[-2] == 'params_summary']
+    data_sets = ['att48', 'berlin52', 'rl1323']
+
+    for d in data_sets:
+
+        printDec(d)
+
+        perc = 10
+        counter = 0
+
+        stats = []
+        plot_info = {}
+
+        for param_file in param_files_all:
+            counter += 1
+            perc = showPercBar(counter, len(param_files_all), perc)
+            if d not in param_file:
+                continue
+            x, y, l, b = analyze(os.path.join(param_file_dir, param_file))
+
+            plot_info[param_file] = [x, y, l]
+
+            stats.append([reprs[i], d] + b + [param_file])
+
+        stats = sorted(stats)
+        print(formatDataTable([header] + stats[:10]))
+        best_param_file = stats[0][-1]
+        x, y, l = plot_info[stats[0][-1]]
+        plot_file_name = best_param_file.split('/')[-1][:-3]
+        plot(x, y, l, title='', x_label='Number of generations', y_label='Fitness', file_name='{}/{}'.format(results_dir, plot_file_name))
+
+        if d not in plot_compare_info:
+            plot_compare_info[d] = [x, [], []]
+        plot_compare_info[d][1].append(y)
+        plot_compare_info[d][2] += ['{} ({})'.format(item, repr_suff[i]) for item in l]
 
 #-----------------------------------------------
 # Plot the results of different GAs defined by
 # different param files
 #-----------------------------------------------
-#plotComparison(x, y_all, legends_all, title='', x_label='Number of generations', y_label='Fitness', file_name='{}/comparison'.format(results_dir))
+for d in data_sets:
+    x, y_all, legends_all = plot_compare_info[d]
+    plotComparison(x, y_all, legends_all, title='', x_label='Number of generations', y_label='Fitness', file_name='{}/comparison_{}'.format(results_dir, d))

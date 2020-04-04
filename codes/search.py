@@ -66,16 +66,16 @@ def selectParent():
                 return i
 
     elif sel_type == 2:    
-        tour_size = 0.5
-        tour_prob = 0.5
+        tour_size = 0.2
+        tour_prob = 1
 
-        tournament = [random.randint(0, pop_size-1) for i in range(int(tour_size * pop_size))]
-        tournament = sorted(tournament, key=lambda i: members[i].profitness, reverse=True)
+        tournament = random.sample(range(pop_size), int(tour_size*pop_size))
+        tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)
 
         for i in range(len(tournament)):
             if random.random() <= tour_prob:
-                return i
-        return len(tournament) - 1
+                return tournament[i]
+        return tournament[-1]
 
     elif sel_type == 3:
         return random.randint(0, pop_size-1)
@@ -135,13 +135,13 @@ def scaleFitness():
             sum_sf += members[i].scl_fitness
 
     elif scale_type == 2:
-        member_indices = sorted(range(pop_size), key=lambda i: members[i].raw_fitness, reverse=True)
+        member_indices = sorted(range(pop_size), key=lambda i: members[i].raw_fitness)
         for i in range(pop_size):
             members[member_indices[i]].scl_fitness = i
             sum_sf += members[member_indices[i]].scl_fitness
 
     elif scale_type == 3:
-        member_indices = sorted(range(pop_size), key=lambda i: members[i].raw_fitness)
+        member_indices = sorted(range(pop_size), key=lambda i: members[i].raw_fitness, reverse=True)
         for i in range(pop_size):
             members[member_indices[i]].scl_fitness = i
             sum_sf += members[member_indices[i]].scl_fitness
@@ -182,6 +182,8 @@ try:
 except:
     print("Error: invalid parameter file")
     sys.exit(1)
+
+verbose = True if len(sys.argv) > 2 and sys.argv[2] == '1' else False
     
 printDec('Parameter filename: {}'.format(param_file))
 params = getSettings(param_file)
@@ -217,7 +219,7 @@ best_overall, best_overall_r, best_overall_g = None, -1, -1
 
 stats_overall = []
 
-for r in range(1, num_runs):
+for r in range(1, num_runs+1):
 
     members = [Chromosome() for i in range(pop_size)]
     
@@ -225,7 +227,11 @@ for r in range(1, num_runs):
 
     stats_all_gen = []
 
-    for g in range(num_gens):
+    perc = 10
+
+    for g in range(1, num_gens+1):
+
+        if not verbose: perc = showPercBar(g, num_gens, perc)
 
         sum_rf = 0
         sum_rf_2 = 0
@@ -251,7 +257,7 @@ for r in range(1, num_runs):
         avg_rf = sum_rf/pop_size
         std_dev_rf = math.sqrt(abs(sum_rf_2-sum_rf**2/pop_size)/(pop_size-1))
 
-        print('{}\t{}\t{}\t{}\t{}'.format(r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf))
+        if verbose: print('{}\t{}\t{}\t{}\t{}'.format(r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf))
 
         stats_all_gen.append([r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf])
 
