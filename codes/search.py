@@ -174,7 +174,7 @@ def evolveGeneration(members):
     return new_members
 
 # -----------------------------------------------
-param_file = 'onemax.params' #sys.argv[1]
+param_file = '../onemax.params' #sys.argv[1]
 printDec('Parameter filename: {}'.format(param_file))
 params = getSettings(param_file)
 
@@ -193,7 +193,7 @@ mut_rate = float(params['Mutation Rate (6)'])
 num_genes = int(params['Number of Genes/Points (7)'])
 gene_size = int(params['Size of Genes (18)'])
 
-out_file = '{}_summary.csv'.format(exp_id)
+out_file = '../results/{}_summary.csv'.format(exp_id)
 writeFile(out_file, '')
 random.seed(random_seed)
 min_or_max  = 'max' if scale_type in [0, 2] else 'min'
