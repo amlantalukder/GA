@@ -66,14 +66,14 @@ def selectParent():
                 return i
 
     elif sel_type == 2:    
-        tour_size = 0.1
-        tour_prob = 1
+        tour_size = 0.5
+        tour_prob = 0.5
 
         tournament = random.sample(range(pop_size), int(tour_size*pop_size))
         tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)
         
         for i in range(len(tournament)):
-            if random.random() <= tour_prob:
+            if random.random() < tour_prob:
                 return tournament[i]
         return tournament[-1]
 
@@ -145,7 +145,7 @@ def scaleFitness():
         for i in range(pop_size):
             members[member_indices[i]].scl_fitness = i
             sum_sf += members[member_indices[i]].scl_fitness
-
+    
     for i in range(pop_size):
         members[i].pro_fitness = members[i].scl_fitness/sum_sf
 
@@ -161,10 +161,12 @@ def evolveGeneration(members):
         while p_index2 == p_index1:
             p_index2 = selectParent()
 
-        if random.random() <= xover_rate:
-            c1, c2 = xover(members[p_index1], members[p_index2])
+        p1, p2 = members[p_index1], members[p_index2]
+
+        if random.random() < xover_rate:
+            c1, c2 = xover(p1, p2)
         else:
-            c1, c2 = members[p_index1].clone(), members[p_index2].clone()
+            c1, c2 = p1.clone(), p2.clone()
 
         c1.mutate()
         c2.mutate()
