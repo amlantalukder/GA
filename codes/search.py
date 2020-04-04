@@ -14,7 +14,7 @@ class Chromosome:
         self.chromo = ''
         for i in range(num_genes):
             for j in range(gene_size):
-                self.chromo += '0' if random.random() > 0.5 else '1'
+                self.chromo += '0' if random.random() < 0.5 else '1'
 
     # -----------------------------------------------
     def mutate(self):
@@ -64,10 +64,11 @@ def selectParent():
             r_wheel += members[i].pro_fitness
             if r < r_wheel:
                 return i
+        return -1
 
     elif sel_type == 2:    
-        tour_size = 0.5
-        tour_prob = 0.5
+        tour_size = 0.2
+        tour_prob = 1
 
         tournament = random.sample(range(pop_size), int(tour_size*pop_size))
         tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)
@@ -291,10 +292,10 @@ for r in range(1, num_runs+1):
        (min_or_max == 'max' and best_overall.raw_fitness < best_of_run.raw_fitness) or \
        (min_or_max == 'min' and best_overall.raw_fitness > best_of_run.raw_fitness)):
 
-        best_overall, best_overall_g, best_overall_r = best_of_run.clone(), g, r
+        best_overall, best_overall_g, best_overall_r = best_of_run.clone(), best_of_run_g, r
 
 writeDataTable(stats_overall, out_file, mode='a')
-
+printDec('Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
 
 
 
