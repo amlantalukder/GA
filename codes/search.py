@@ -66,12 +66,12 @@ def selectParent():
                 return i
 
     elif sel_type == 2:    
-        tour_size = 0.2
+        tour_size = 0.1
         tour_prob = 1
 
         tournament = random.sample(range(pop_size), int(tour_size*pop_size))
         tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)
-
+        
         for i in range(len(tournament)):
             if random.random() <= tour_prob:
                 return tournament[i]
@@ -210,6 +210,14 @@ out_file = '../results/{}_summary.csv'.format(exp_id)
 writeFile(out_file, '')
 random.seed(random_seed)
 min_or_max  = 'max' if scale_type in [0, 2] else 'min'
+
+# Rank selection
+if sel_type==4:
+    sel_type = 1
+    if scale_type==0:
+        scale_type = 2
+    elif scale_type==1:
+        scale_type = 3
 
 
 # -----------------------------------------------

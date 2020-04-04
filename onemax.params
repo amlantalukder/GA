@@ -4,7 +4,7 @@ Data Input File Name         :NA
 Number of Runs               :50
 Generations per Run          :100
 Population Size              :50
-Selection Method (1)         :2
+Selection Method (1)         :4
 Fitness Scaling Type (2)     :0
 Crossover Type (3)           :1
 Crossover Rate (4)           :1
