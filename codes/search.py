@@ -67,8 +67,8 @@ def selectParent():
         return -1
 
     elif sel_type == 2:    
-        tour_size = 0.2
-        tour_prob = 1
+        tour_size = 0.5
+        tour_prob = 0.2
 
         tournament = random.sample(range(pop_size), int(tour_size*pop_size))
         tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)
@@ -93,7 +93,7 @@ def xover(p1, p2):
         # -----------------------------------------------
         # Select crossover point
         # -----------------------------------------------
-        xp = 1 + (int)(random.random() * (num_genes * gene_size-1))
+        xp = random.randint(0, num_genes * gene_size-1)
 
         # -----------------------------------------------
         # Create child chromosome from parental material
@@ -105,8 +105,8 @@ def xover(p1, p2):
         # -----------------------------------------------
         # Select crossover points
         # -----------------------------------------------
-        xp1 = 1 + (int)(random.random() * (num_genes * gene_size-1))
-        xp2 = 1 + (int)(random.random() * (num_genes * gene_size-1))
+        xp1 = random.randint(0, num_genes * gene_size-1)
+        xp2 = random.randint(0, num_genes * gene_size-1)
 
         if xp1 > xp2:
             xp1, xp2 = xp2, xp1
