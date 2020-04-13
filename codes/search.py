@@ -1,4 +1,4 @@
-from codes.utils import *
+from utils import *
 import pdb
 
 # -----------------------------------------------
@@ -189,7 +189,7 @@ except:
 verbose = True if len(sys.argv) > 2 and sys.argv[2] == '1' else False
     
 printDec('Parameter filename: {}'.format(param_file))
-params = getSettings(param_file)
+params = getSettings('../{}'.format(param_file))
 
 problem_type = params['Problem Type']
 exp_id = params['Experiment ID']
@@ -209,7 +209,7 @@ gene_size = int(params['Size of Genes (18)'])
 
 printDec('Problem name: {}'.format(problem_type))
 
-out_file = 'results/{}_summary.csv'.format(exp_id)
+out_file = '../results/{}_summary.csv'.format(exp_id)
 writeFile(out_file, '')
 random.seed(random_seed)
 min_or_max  = 'max' if scale_type in [0, 2] else 'min'
