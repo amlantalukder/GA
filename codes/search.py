@@ -1,4 +1,4 @@
-from utils import *
+from codes.utils import *
 import pdb
 
 # -----------------------------------------------
@@ -179,7 +179,7 @@ def evolveGeneration(members):
 # -----------------------------------------------
 # Load parameters
 # -----------------------------------------------
-param_file = '../onemax.params'
+param_file = 'onemax.params'
 try:
     param_file = sys.argv[1]
 except:
@@ -209,7 +209,7 @@ gene_size = int(params['Size of Genes (18)'])
 
 printDec('Problem name: {}'.format(problem_type))
 
-out_file = '../results/{}_summary.csv'.format(exp_id)
+out_file = 'results/{}_summary.csv'.format(exp_id)
 writeFile(out_file, '')
 random.seed(random_seed)
 min_or_max  = 'max' if scale_type in [0, 2] else 'min'
