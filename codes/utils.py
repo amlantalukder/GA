@@ -55,7 +55,7 @@ def getSettings(file_name):
     #-----------------------------------------------
     # Get GA settings
     #-----------------------------------------------
-    return dict([item.split(' :') for item in data[:15]])
+    return dict([item.split(' :') for item in data[:17]])
 
 # -----------------------------------------------
 def showPercBar(counter, size, perc, perc_inc=10):

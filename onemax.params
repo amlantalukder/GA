@@ -13,6 +13,8 @@ Mutation Rate (6)            :0.001
 Random Number Seed           :75982
 Number of Genes/Points (7)   :1
 Size of Genes (18)           :200
+Decay                        :0.8
+Queue Length                 :100
 
 Notes:
 
