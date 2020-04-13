@@ -1,8 +1,10 @@
 from utils import *
 import pdb
 
+# -----------------------------------------------
 class Parameters:
 
+    # -----------------------------------------------
     def __init__(self, params):
 
         self.problem_type = self.getDictVal(params, 'Problem Type')
@@ -30,6 +32,7 @@ class Parameters:
             elif self.scale_type == 1:
                 self.scale_type = 3
 
+    # -----------------------------------------------
     def getDictVal(self, d, key):
         return d[key] if key in d else None
 
@@ -131,7 +134,7 @@ class Chromosome:
         print(self.pro_fitness)
 
 # -----------------------------------------------
-def selectParent():
+def selectParent(members):
 
     assert params.sel_type in [1, 2, 3], 'Error: Invalid selection type {}'.format(params.sel_type)
 
@@ -204,7 +207,7 @@ def xover(p1, p2):
     return c1, c2
 
 # -----------------------------------------------
-def scaleFitness():
+def scaleFitness(members):
 
     assert params.scale_type in [0, 1, 2, 3], 'Error: Invalid fitness scaling type {}'.format(params.scale_type)
 
@@ -233,6 +236,8 @@ def scaleFitness():
     
     for i in range(params.pop_size):
         members[i].pro_fitness = members[i].scl_fitness/sum_sf
+
+    return members
 
 # -----------------------------------------------
 def evolveGeneration(members):
@@ -267,10 +272,10 @@ def evolveGeneration(members):
         elif worst_two_members_info[0][0] > members[i].pro_fitness:
             worst_two_members_info[0] = (members[i].pro_fitness, i)
 
-    p_index1 = selectParent()
+    p_index1 = selectParent(members)
     p_index2 = p_index1
     while p_index2 == p_index1:
-        p_index2 = selectParent()
+        p_index2 = selectParent(members)
 
     p1, p2 = members[p_index1], members[p_index2]
 
@@ -316,105 +321,116 @@ def evolveGeneration(members):
     return members
 
 # -----------------------------------------------
-# Load parameters
-# -----------------------------------------------
-try:
-    param_file = sys.argv[1]
-except:
-    print("Error: invalid parameter file")
-    sys.exit(1)
+def runGA(params, verbose=False):
 
-verbose = True if len(sys.argv) > 2 and sys.argv[2] == '1' else False
-    
-printDec('Parameter filename: {}'.format(param_file))
-params = Parameters(getSettings(param_file))
+    global queue, total_credit_xover, total_credit_mut, num_xover, num_mut
 
-printDec('Problem name: {}'.format(params.problem_type))
+    printDec('Problem name: {}'.format(params.problem_type))
 
-out_file = 'results/{}_summary.csv'.format(params.exp_id)
-writeFile(out_file, '')
-random.seed(params.random_seed)
-min_or_max  = 'max' if params.scale_type in [0, 2] else 'min'
+    out_file = 'results/{}_summary.csv'.format(params.exp_id)
+    writeFile(out_file, '')
+    random.seed(params.random_seed)
+    min_or_max  = 'max' if params.scale_type in [0, 2] else 'min'
 
-# -----------------------------------------------
-# Run GA
-# -----------------------------------------------
-best_overall, best_overall_r, best_overall_g = None, -1, -1
+    # -----------------------------------------------
+    # Run GA
+    # -----------------------------------------------
+    best_overall, best_overall_r, best_overall_g = None, -1, -1
 
-stats_overall = []
+    stats_overall = []
 
-for r in range(1, params.num_runs+1):
+    for r in range(1, params.num_runs+1):
 
-    members = [Chromosome() for i in range(params.pop_size)]
-    
-    best_of_run, best_of_run_g = None, -1
+        members = [Chromosome() for i in range(params.pop_size)]
 
-    num_xover, num_mut = 0, 0
-    total_credit_xover, total_credit_mut = 0, 0
-    queue = Queue()
+        best_of_run, best_of_run_g = None, -1
 
-    stats_all_gen = []
+        num_xover, num_mut = 0, 0
+        total_credit_xover, total_credit_mut = 0, 0
+        queue = Queue()
 
-    perc = 10
+        stats_all_gen = []
 
-    for g in range(1, params.num_gens+1):
+        perc = 10
 
-        if not verbose: perc = showPercBar(g, params.num_gens, perc)
+        for g in range(1, params.num_gens+1):
 
-        sum_rf = 0
-        sum_rf_2 = 0
+            if not verbose: perc = showPercBar(g, params.num_gens, perc)
 
-        best_of_gen = None
+            sum_rf = 0
+            sum_rf_2 = 0
 
-        for i in range(params.pop_size):
+            best_of_gen = None
 
-            members[i].calcFitness()
+            for i in range(params.pop_size):
 
-            sum_rf += members[i].raw_fitness
-            sum_rf_2 += members[i].raw_fitness ** 2
-                
-            if best_of_gen == None or \
-               (min_or_max == 'max' and best_of_gen.raw_fitness < members[i].raw_fitness) or \
-               (min_or_max == 'min' and best_of_gen.raw_fitness > members[i].raw_fitness):
+                members[i].calcFitness()
 
-                best_of_gen = members[i].clone()
+                sum_rf += members[i].raw_fitness
+                sum_rf_2 += members[i].raw_fitness ** 2
 
-        scaleFitness()
-        members = evolveGeneration(members)
+                if best_of_gen == None or \
+                   (min_or_max == 'max' and best_of_gen.raw_fitness < members[i].raw_fitness) or \
+                   (min_or_max == 'min' and best_of_gen.raw_fitness > members[i].raw_fitness):
 
-        avg_rf = sum_rf/params.pop_size
-        std_dev_rf = math.sqrt(abs(sum_rf_2-sum_rf**2/params.pop_size)/(params.pop_size-1))
+                    best_of_gen = members[i].clone()
 
-        if verbose: print('{}\t{}\t{}\t{}\t{}'.format(r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf))
+            members = scaleFitness(members)
+            members = evolveGeneration(members)
 
-        stats_all_gen.append([r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf])
+            avg_rf = sum_rf/params.pop_size
+            std_dev_rf = math.sqrt(abs(sum_rf_2-sum_rf**2/params.pop_size)/(params.pop_size-1))
 
-        if best_of_gen != None and \
-           (best_of_run == None or \
-           (min_or_max == 'max' and best_of_run.raw_fitness < best_of_gen.raw_fitness) or \
-           (min_or_max == 'min' and best_of_run.raw_fitness > best_of_gen.raw_fitness)):
-            
-            best_of_run, best_of_run_g = best_of_gen.clone(), g
+            if verbose: print('{}\t{}\t{}\t{}\t{}'.format(r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf))
 
-    stats_all_gen.append([])
-    stats_all_gen.append([])
-    
-    writeDataTable(stats_all_gen, out_file, mode='a')
+            stats_all_gen.append([r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf])
 
-    printDec('Run: {}, Best gen: {}, Best fitness: {}'.format(r, best_of_run_g, best_of_run.raw_fitness))
-    stats_overall.append([r, best_of_run_g, best_of_run.raw_fitness])
+            if best_of_gen != None and \
+               (best_of_run == None or \
+               (min_or_max == 'max' and best_of_run.raw_fitness < best_of_gen.raw_fitness) or \
+               (min_or_max == 'min' and best_of_run.raw_fitness > best_of_gen.raw_fitness)):
 
-    if best_of_run != None and \
-       (best_overall == None or \
-       (min_or_max == 'max' and best_overall.raw_fitness < best_of_run.raw_fitness) or \
-       (min_or_max == 'min' and best_overall.raw_fitness > best_of_run.raw_fitness)):
+                best_of_run, best_of_run_g = best_of_gen.clone(), g
 
-        best_overall, best_overall_g, best_overall_r = best_of_run.clone(), best_of_run_g, r
+        stats_all_gen.append([])
+        stats_all_gen.append([])
 
-writeDataTable(stats_overall, out_file, mode='a')
-printDec('Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
+        writeDataTable(stats_all_gen, out_file, mode='a')
 
+        printDec('Run: {}, Best gen: {}, Best fitness: {}'.format(r, best_of_run_g, best_of_run.raw_fitness))
+        stats_overall.append([r, best_of_run_g, best_of_run.raw_fitness])
 
+        if best_of_run != None and \
+           (best_overall == None or \
+           (min_or_max == 'max' and best_overall.raw_fitness < best_of_run.raw_fitness) or \
+           (min_or_max == 'min' and best_overall.raw_fitness > best_of_run.raw_fitness)):
+
+            best_overall, best_overall_g, best_overall_r = best_of_run.clone(), best_of_run_g, r
+
+    writeDataTable(stats_overall, out_file, mode='a')
+    printDec('Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
+
+num_xover, num_mut = 0, 0
+total_credit_xover, total_credit_mut = 0, 0
+queue = Queue()
+
+if __name__ ==  '__main__':
+
+    # -----------------------------------------------
+    # Load parameters
+    # -----------------------------------------------
+    try:
+        param_file = sys.argv[1]
+    except:
+        print("Error: invalid parameter file")
+        sys.exit(1)
+
+    verbose = True if len(sys.argv) > 2 and sys.argv[2] == '1' else False
+
+    printDec('Parameter filename: {}'.format(param_file))
+    params = Parameters(getSettings(param_file))
+
+    runGA(params, verbose)
 
 
 
