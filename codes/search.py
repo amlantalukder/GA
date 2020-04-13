@@ -10,6 +10,12 @@ class Chromosome:
         self.raw_fitness = -1
         self.scl_fitness = -1
         self.pro_fitness = -1
+
+        self.optype = None
+        self.p1 = None
+        self.p2 = None
+        self.credit_xover = None
+        self.credit_mut = None
         
         self.chromo = ''
         for i in range(num_genes):
@@ -17,7 +23,7 @@ class Chromosome:
                 self.chromo += '0' if random.random() < 0.5 else '1'
 
     # -----------------------------------------------
-    def mutate(self):
+    def mutate(self, p):
 
         assert mut_type == 1, 'Error: Invalid mutation type {}'.format(mut_type)
 
@@ -29,10 +35,49 @@ class Chromosome:
                 x += self.chromo[i]
         self.chromo = x
 
+        self.setOperatorHierarchy('mut', p1=p)
+
     # -----------------------------------------------
     def calcFitness(self):
 
         self.raw_fitness = sum([int(i) for i in self.chromo])
+
+    # -----------------------------------------------
+    def setOperatorHierarchy(self, optype, p1=None, p2=None):
+        self.optype = optype
+        self.p1 = p1
+        self.p2 = p2
+        self.setOpertorCredit()
+
+    # -----------------------------------------------
+    def setOpertorCredit(self):
+        credit_xover, credit_mut = 0, 0
+
+        level = 0
+        count_xover, count_mut = (1, 0) if self.optype == 'xover' else (0, 1)
+        credit_xover += count_xover * decay ** level
+        credit_mut += count_mut * decay ** level
+
+        parents = self.p1, self.p2
+        while len(parents) > 0:
+            count_xover, count_mut = 0, 0
+            newparents = []
+            for p in parents:
+                if not p: continue
+                if p.optype:
+                    if p.optype == 'xover':
+                        count_xover += 1
+                    else:
+                        count_mut += 1
+                if p.p1: newparents.append(p.p1)
+                if p.p2: newparents.append(p.p2)
+            parents = newparents
+            level += 1
+            credit_xover += count_xover * decay ** level
+            credit_mut += count_mut * decay ** level
+
+        self.credit_xover = credit_xover
+        self.credit_mut = credit_mut
 
     # -----------------------------------------------
     def clone(self):
@@ -101,6 +146,9 @@ def xover(p1, p2):
         c1.chromo = p1.chromo[:xp] + p2.chromo[xp:]
         c2.chromo = p2.chromo[:xp] + p1.chromo[xp:]
 
+        c1.setOperatorHierarchy('xover', p1, p2)
+        c2.setOperatorHierarchy('xover', p2, p1)
+
     elif xover_type == 2:
         # -----------------------------------------------
         # Select crossover points
@@ -116,6 +164,9 @@ def xover(p1, p2):
         # -----------------------------------------------
         c1.chromo = p1.chromo[:xp1] + p2.chromo[xp1:xp2] + p1.chromo[xp2:]
         c2.chromo = p2.chromo[:xp1] + p1.chromo[xp1:xp2] + p2.chromo[xp2:]
+
+        c1.setOperatorHierarchy('xover', p1, p2)
+        c2.setOperatorHierarchy('xover', p2, p1)
 
     return c1, c2
 
@@ -190,13 +241,41 @@ def evolveGeneration(members):
 
     p1, p2 = members[p_index1], members[p_index2]
 
-    if random.random() < xover_rate:
+    global queue, total_credit_xover, total_credit_mut, num_xover, num_mut
+
+    #print(total_credit_xover, total_credit_mut, num_xover, num_mut)
+
+    if queue.size() >= qlen:
+        xover_ratio = (total_credit_xover/num_xover) if num_xover > 0 else 0
+        mut_ratio = (total_credit_mut/num_mut) if num_mut > 0 else 0
+        xover_rate_ada = xover_ratio/(xover_ratio + mut_ratio)
+    else:
+        xover_rate_ada = xover_rate
+
+    if random.random() < xover_rate_ada:
         c1, c2 = xover(p1, p2)
+        num_xover += 2
     else:
         c1, c2 = p1.clone(), p2.clone()
+        c1.mutate(p1)
+        c2.mutate(p2)
+        num_mut += 2
 
-    c1.mutate()
-    c2.mutate()
+    for c in [c1, c2]:
+
+        if queue.size() > qlen:
+            optype, credit_xover, credit_mut = queue.dequeue()
+            total_credit_xover -= credit_xover
+            total_credit_mut -= credit_mut
+            if optype == 'xover':
+                num_xover -= 1
+            elif optype == 'mut':
+                num_mut -= 1
+
+        total_credit_xover += c.credit_xover
+        total_credit_mut += c.credit_mut
+
+        queue.enqueue((c.optype, c.credit_xover, c.credit_mut))
 
     members[worst_two_members_info[0][1]] = c1
     members[worst_two_members_info[1][1]] = c2
@@ -232,6 +311,8 @@ mut_rate = float(params['Mutation Rate (6)'])
 num_genes = int(params['Number of Genes/Points (7)'])
 gene_size = int(params['Size of Genes (18)'])
 
+decay = 0.8
+qlen = 4
 
 printDec('Problem name: {}'.format(problem_type))
 
@@ -261,6 +342,10 @@ for r in range(1, num_runs+1):
     members = [Chromosome() for i in range(pop_size)]
     
     best_of_run, best_of_run_g = None, -1
+
+    num_xover, num_mut = 0, 0
+    total_credit_xover, total_credit_mut = 0, 0
+    queue = Queue()
 
     stats_all_gen = []
 
