@@ -153,33 +153,59 @@ def scaleFitness():
 # -----------------------------------------------
 def evolveGeneration(members):
 
-    new_members = []
+    worst_two_members_info = []
 
     for i in range(pop_size):
+        # When the list is empty
+        if len(worst_two_members_info) == 0:
+            worst_two_members_info.append((members[i].pro_fitness, i))
+        # When the list has only one entry
+        elif len(worst_two_members_info) == 1:
+            # The new fitness is worse than the entry, enlist it
+            if worst_two_members_info[0][0] > members[i].pro_fitness:
+                worst_two_members_info.append((members[i].pro_fitness, i))
+            # The new fitness is better than the entry,
+            # move the entry as the worst fitness,
+            # enlist the new one as the second worst
+            else:
+                worst_two_members_info.append(worst_two_members_info[0])
+                worst_two_members_info[0] = (members[i].pro_fitness, i)
+        # When the list has both entries,
+        # if the new fitness is worst than the enlisted worse,
+        # then move the enlisted worst to second worst and
+        # enlist the new fitness as the worst
+        elif worst_two_members_info[1][0] > members[i].pro_fitness:
+            worst_two_members_info[0] = worst_two_members_info[1]
+            worst_two_members_info[1] = (members[i].pro_fitness, i)
+        # When the list has both entries,
+        # if the new fitness is better than the enlisted worse but worse than the second worst
+        # then enlist the new fitness as the second worst
+        elif worst_two_members_info[0][0] > members[i].pro_fitness:
+            worst_two_members_info[0] = (members[i].pro_fitness, i)
 
-        p_index1 = selectParent()
-        p_index2 = p_index1
-        while p_index2 == p_index1:
-            p_index2 = selectParent()
+    p_index1 = selectParent()
+    p_index2 = p_index1
+    while p_index2 == p_index1:
+        p_index2 = selectParent()
 
-        p1, p2 = members[p_index1], members[p_index2]
+    p1, p2 = members[p_index1], members[p_index2]
 
-        if random.random() < xover_rate:
-            c1, c2 = xover(p1, p2)
-        else:
-            c1, c2 = p1.clone(), p2.clone()
+    if random.random() < xover_rate:
+        c1, c2 = xover(p1, p2)
+    else:
+        c1, c2 = p1.clone(), p2.clone()
 
-        c1.mutate()
-        c2.mutate()
+    c1.mutate()
+    c2.mutate()
 
-        new_members += [c1, c2]
+    members[worst_two_members_info[0][1]] = c1
+    members[worst_two_members_info[1][1]] = c2
 
-    return new_members
+    return members
 
 # -----------------------------------------------
 # Load parameters
 # -----------------------------------------------
-param_file = '../onemax.params'
 try:
     param_file = sys.argv[1]
 except:
@@ -209,7 +235,7 @@ gene_size = int(params['Size of Genes (18)'])
 
 printDec('Problem name: {}'.format(problem_type))
 
-out_file = '../results/{}_summary.csv'.format(exp_id)
+out_file = 'results/{}_summary.csv'.format(exp_id)
 writeFile(out_file, '')
 random.seed(random_seed)
 min_or_max  = 'max' if scale_type in [0, 2] else 'min'

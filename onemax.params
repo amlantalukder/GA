@@ -2,7 +2,7 @@ Experiment ID                :onemax
 Problem Type                 :OM
 Data Input File Name         :NA
 Number of Runs               :3
-Generations per Run          :100
+Generations per Run          :1000
 Population Size              :300
 Selection Method (1)         :4
 Fitness Scaling Type (2)     :2
