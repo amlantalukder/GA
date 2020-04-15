@@ -55,7 +55,7 @@ def getSettings(file_name):
     #-----------------------------------------------
     # Get GA settings
     #-----------------------------------------------
-    return dict([item.split(' :') for item in data[:17]])
+    return dict([item.split(' :') for item in data[:18]])
 
 # -----------------------------------------------
 def showPercBar(counter, size, perc, perc_inc=10):
@@ -71,11 +71,15 @@ def showPercBar(counter, size, perc, perc_inc=10):
 
 # -----------------------------------------------
 class Queue:
-    def __init__(self):
+    def __init__(self, qlen):
         self.items = []
+        self.max_len = qlen
 
     def isEmpty(self):
         return self.items == []
+
+    def isFull(self):
+        return len(self.items) >= self.max_len
 
     def enqueue(self, item):
         self.items.insert(0,item)

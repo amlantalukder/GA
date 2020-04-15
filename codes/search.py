@@ -23,6 +23,7 @@ class Parameters:
         self.gene_size = int(self.getDictVal(params, 'Size of Genes (18)'))
         self.decay = float(self.getDictVal(params, 'Decay'))
         self.qlen = int(self.getDictVal(params, 'Queue Length'))
+        self.depth = int(self.getDictVal(params, 'Depth'))
 
         # Rank selection
         if self.sel_type == 4:
@@ -59,7 +60,7 @@ class Chromosome:
                 self.chromo += '0' if random.random() < 0.5 else '1'
 
     # -----------------------------------------------
-    def mutate(self, p):
+    def mutate(self):
 
         assert params.mut_type == 1, 'Error: Invalid mutation type {}'.format(params.mut_type)
 
@@ -70,8 +71,6 @@ class Chromosome:
             else:
                 x += self.chromo[i]
         self.chromo = x
-
-        self.setOperatorHierarchy('mut', p1=p)
 
     # -----------------------------------------------
     def calcFitness(self):
@@ -89,13 +88,13 @@ class Chromosome:
     def setOpertorCredit(self):
         credit_xover, credit_mut = 0, 0
 
-        level = 0
+        level = 1
         count_xover, count_mut = (1, 0) if self.optype == 'xover' else (0, 1)
-        credit_xover += count_xover * params.decay ** level
-        credit_mut += count_mut * params.decay ** level
+        credit_xover += count_xover * params.decay ** (level-1)
+        credit_mut += count_mut * params.decay ** (level-1)
 
         parents = self.p1, self.p2
-        while len(parents) > 0:
+        while len(parents) > 0 and level <= params.depth:
             count_xover, count_mut = 0, 0
             newparents = []
             for p in parents:
@@ -109,8 +108,8 @@ class Chromosome:
                 if p.p2: newparents.append(p.p2)
             parents = newparents
             level += 1
-            credit_xover += count_xover * params.decay ** level
-            credit_mut += count_mut * params.decay ** level
+            credit_xover += count_xover * params.decay ** (level-1)
+            credit_mut += count_mut * params.decay ** (level-1)
 
         self.credit_xover = credit_xover
         self.credit_mut = credit_mut
@@ -182,9 +181,6 @@ def xover(p1, p2):
         c1.chromo = p1.chromo[:xp] + p2.chromo[xp:]
         c2.chromo = p2.chromo[:xp] + p1.chromo[xp:]
 
-        c1.setOperatorHierarchy('xover', p1, p2)
-        c2.setOperatorHierarchy('xover', p2, p1)
-
     elif xover_type == 2:
         # -----------------------------------------------
         # Select crossover points
@@ -200,9 +196,6 @@ def xover(p1, p2):
         # -----------------------------------------------
         c1.chromo = p1.chromo[:xp1] + p2.chromo[xp1:xp2] + p1.chromo[xp2:]
         c2.chromo = p2.chromo[:xp1] + p1.chromo[xp1:xp2] + p2.chromo[xp2:]
-
-        c1.setOperatorHierarchy('xover', p1, p2)
-        c2.setOperatorHierarchy('xover', p2, p1)
 
     return c1, c2
 
@@ -283,7 +276,7 @@ def evolveGeneration(members):
 
     #print(total_credit_xover, total_credit_mut, num_xover, num_mut)
 
-    if queue.size() >= params.qlen:
+    if queue.isFull():
         xover_ratio = (total_credit_xover/num_xover) if num_xover > 0 else 0
         mut_ratio = (total_credit_mut/num_mut) if num_mut > 0 else 0
         xover_rate = xover_ratio/(xover_ratio + mut_ratio)
@@ -292,16 +285,22 @@ def evolveGeneration(members):
 
     if random.random() < xover_rate:
         c1, c2 = xover(p1, p2)
+        c1.setOperatorHierarchy('xover', p1, p2)
+        c2.setOperatorHierarchy('xover', p2, p1)
         num_xover += 2
+        total_credit_xover += (c1.credit_xover + c2.credit_xover)
     else:
         c1, c2 = p1.clone(), p2.clone()
-        c1.mutate(p1)
-        c2.mutate(p2)
+        c1.mutate()
+        c1.setOperatorHierarchy('mut', p1)
+        c2.mutate()
+        c2.setOperatorHierarchy('mut', p2)
         num_mut += 2
+        total_credit_mut += (c1.credit_mut + c2.credit_mut)
 
     for c in [c1, c2]:
 
-        if queue.size() > params.qlen:
+        if queue.isFull():
             optype, credit_xover, credit_mut = queue.dequeue()
             total_credit_xover -= credit_xover
             total_credit_mut -= credit_mut
@@ -309,9 +308,6 @@ def evolveGeneration(members):
                 num_xover -= 1
             elif optype == 'mut':
                 num_mut -= 1
-
-        total_credit_xover += c.credit_xover
-        total_credit_mut += c.credit_mut
 
         queue.enqueue((c.optype, c.credit_xover, c.credit_mut))
 
@@ -347,7 +343,7 @@ def runGA(params, verbose=False):
 
         num_xover, num_mut = 0, 0
         total_credit_xover, total_credit_mut = 0, 0
-        queue = Queue()
+        queue = Queue(params.qlen)
 
         stats_all_gen = []
 
@@ -412,7 +408,7 @@ def runGA(params, verbose=False):
 
 num_xover, num_mut = 0, 0
 total_credit_xover, total_credit_mut = 0, 0
-queue = Queue()
+queue = None
 
 if __name__ ==  '__main__':
 
