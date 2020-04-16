@@ -42,7 +42,7 @@ class Parameters:
 class Chromosome:
 
     # -----------------------------------------------
-    def __init__(self):
+    def __init__(self, chromo = None):
 
         self.raw_fitness = -1
         self.scl_fitness = -1
@@ -51,26 +51,37 @@ class Chromosome:
         self.optype = None
         self.p1 = None
         self.p2 = None
-        self.credit_xover = None
-        self.credit_mut = None
-        
+        self.credit = {}
         self.chromo = ''
-        for i in range(params.num_genes):
-            for j in range(params.gene_size):
-                self.chromo += '0' if random.random() < 0.5 else '1'
+
+        if chromo == None:
+            for i in range(params.num_genes):
+                for j in range(params.gene_size):
+                    self.chromo += '0' if random.random() < 0.5 else '1'
+        else:
+            self.chromo = chromo
 
     # -----------------------------------------------
     def mutate(self):
 
-        assert params.mut_type == 1, 'Error: Invalid mutation type {}'.format(params.mut_type)
+        assert params.mut_type in [1, 2], 'Error: Invalid mutation type {}'.format(params.mut_type)
 
-        x = ''
-        for i in range(params.num_genes * params.gene_size):
-            if random.random() < params.mut_rate:
-                x += '0' if self.chromo[i] == '1' else '0'
-            else:
-                x += self.chromo[i]
-        self.chromo = x
+        # Flip
+        if params.mut_type == 1:
+            x = ''
+            for i in range(len(self.chromo)):
+                if random.random() < params.mut_rate:
+                    x += '0' if self.chromo[i] == '1' else '0'
+                else:
+                    x += self.chromo[i]
+            self.chromo = x
+
+        # Swap
+        elif params.mut_type == 2:
+
+            x = [i for i in self.chromo]
+            random.shuffle(x)
+            self.chromo = ''.join(x)
 
     # -----------------------------------------------
     def calcFitness(self):
@@ -86,33 +97,32 @@ class Chromosome:
 
     # -----------------------------------------------
     def setOpertorCredit(self):
-        credit_xover, credit_mut = 0, 0
 
         level = 1
-        count_xover, count_mut = (1, 0) if self.optype == 'xover' else (0, 1)
-        credit_xover += count_xover * params.decay ** (level-1)
-        credit_mut += count_mut * params.decay ** (level-1)
 
-        parents = self.p1, self.p2
-        while len(parents) > 0 and level <= params.depth:
-            count_xover, count_mut = 0, 0
-            newparents = []
-            for p in parents:
+        nodes = [self]
+        while len(nodes) > 0 and level <= params.depth:
+
+            new_nodes = []
+            fitness_gain = {}
+
+            for p in nodes:
                 if not p: continue
                 if p.optype:
-                    if p.optype == 'xover':
-                        count_xover += 1
+                    if p.p1 and p.p2:
+                        f = max(p.p1.raw_fitness, p.p2.raw_fitness)
+                    elif p.p1: f = p.p1.raw_fitness
+                    elif p.p2: f = p.p2.raw_fitness
                     else:
-                        count_mut += 1
-                if p.p1: newparents.append(p.p1)
-                if p.p2: newparents.append(p.p2)
-            parents = newparents
-            level += 1
-            credit_xover += count_xover * params.decay ** (level-1)
-            credit_mut += count_mut * params.decay ** (level-1)
+                        continue
+                    if p.optype not in self.credit: self.credit[p.optype] = 0
+                    self.credit[p.optype] += (p.raw_fitness - f) * params.decay ** (level-1)
 
-        self.credit_xover = credit_xover
-        self.credit_mut = credit_mut
+                if p.p1: new_nodes.append(p.p1)
+                if p.p2: new_nodes.append(p.p2)
+
+            nodes = new_nodes
+            level += 1
 
     # -----------------------------------------------
     def clone(self):
@@ -169,6 +179,7 @@ def xover(p1, p2):
     c1 = Chromosome()
     c2 = Chromosome()
 
+    # One point
     if params.xover_type == 1:
         # -----------------------------------------------
         # Select crossover point
@@ -181,7 +192,8 @@ def xover(p1, p2):
         c1.chromo = p1.chromo[:xp] + p2.chromo[xp:]
         c2.chromo = p2.chromo[:xp] + p1.chromo[xp:]
 
-    elif xover_type == 2:
+    # Two point
+    elif params.xover_type == 2:
         # -----------------------------------------------
         # Select crossover points
         # -----------------------------------------------
@@ -196,6 +208,26 @@ def xover(p1, p2):
         # -----------------------------------------------
         c1.chromo = p1.chromo[:xp1] + p2.chromo[xp1:xp2] + p1.chromo[xp2:]
         c2.chromo = p2.chromo[:xp1] + p1.chromo[xp1:xp2] + p2.chromo[xp2:]
+
+    # Uniform
+    elif params.xover_type == 2:
+
+        x1, x2 = '', ''
+
+        for i in range(len(p1.chromo)):
+
+            # -----------------------------------------------
+            # Create child chromosome from parental material
+            # -----------------------------------------------
+            if random.random() < 0.5:
+                x1 += p1.chromo[i]
+                x2 += p2.chromo[i]
+            else:
+                x1 += p2.chromo[i]
+                x2 += p1.chromo[i]
+
+        c1 = Chromosome(x1)
+        c2 = Chromosome(x2)
 
     return c1, c2
 
@@ -272,44 +304,56 @@ def evolveGeneration(members):
 
     p1, p2 = members[p_index1], members[p_index2]
 
-    global queue, total_credit_xover, total_credit_mut, num_xover, num_mut
+    global queue, operator_credit_info
 
     #print(total_credit_xover, total_credit_mut, num_xover, num_mut)
 
+    s = 0
     if queue.isFull():
-        xover_ratio = (total_credit_xover/num_xover) if num_xover > 0 else 0
-        mut_ratio = (total_credit_mut/num_mut) if num_mut > 0 else 0
-        xover_rate = xover_ratio/(xover_ratio + mut_ratio)
-    else:
-        xover_rate = params.xover_rate
+        for optype in operator_credit_info:
+            total_credit, num = operator_credit_info[optype][:2]
+            operator_credit_info[optype][2] = (total_credit/num) if num > 0 else 0
+            s += operator_credit_info[optype][2]
 
-    if random.random() < xover_rate:
-        c1, c2 = xover(p1, p2)
-        c1.setOperatorHierarchy('xover', p1, p2)
-        c2.setOperatorHierarchy('xover', p2, p1)
-        num_xover += 2
-        total_credit_xover += (c1.credit_xover + c2.credit_xover)
+    if s > 0:
+        for optype in operator_credit_info:
+            operator_credit_info[optype][2] = operator_credit_info[optype][2]/s
     else:
-        c1, c2 = p1.clone(), p2.clone()
-        c1.mutate()
-        c1.setOperatorHierarchy('mut', p1)
-        c2.mutate()
-        c2.setOperatorHierarchy('mut', p2)
-        num_mut += 2
-        total_credit_mut += (c1.credit_mut + c2.credit_mut)
+        for optype in operator_credit_info:
+            operator_credit_info[optype][2] = 1/len(operator_credit_info)
+
+    toss, r = random.random(), 0
+    for optype in operator_credit_info:
+        if toss < r+operator_credit_info[optype][2]:
+            if optype[:3] == 'xov':
+                params.xover_type = int(optype.split('_')[1])
+                c1, c2 = xover(p1, p2)
+                c1.setOperatorHierarchy(optype, p1, p2)
+                c2.setOperatorHierarchy(optype, p2, p1)
+                operator_credit_info[optype][0] += (c1.credit[optype] + c2.credit[optype])
+                operator_credit_info[optype][1] += 2
+                break
+            elif optype[:3] == 'mut':
+                params.mut_type = int(optype.split('_')[1])
+                c1, c2 = p1.clone(), p2.clone()
+                c1.mutate()
+                c1.setOperatorHierarchy(optype, p1)
+                c2.mutate()
+                c2.setOperatorHierarchy(optype, p2)
+                operator_credit_info[optype][0] += (c1.credit[optype] + c2.credit[optype])
+                operator_credit_info[optype][1] += 2
+                break
+        r += operator_credit_info[optype][2]
 
     for c in [c1, c2]:
 
         if queue.isFull():
-            optype, credit_xover, credit_mut = queue.dequeue()
-            total_credit_xover -= credit_xover
-            total_credit_mut -= credit_mut
-            if optype == 'xover':
-                num_xover -= 1
-            elif optype == 'mut':
-                num_mut -= 1
+            optype, credit = queue.dequeue()
+            for optype in credit:
+                operator_credit_info[optype][0] -= credit[optype]
+                operator_credit_info[optype][1] -= 1
 
-        queue.enqueue((c.optype, c.credit_xover, c.credit_mut))
+        queue.enqueue((c.optype, c.credit))
 
     members[worst_two_members_info[0][1]] = c1
     members[worst_two_members_info[1][1]] = c2
@@ -406,8 +450,8 @@ def runGA(params, verbose=False):
     writeDataTable(stats_overall, out_file, mode='a')
     printDec('Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
 
-num_xover, num_mut = 0, 0
-total_credit_xover, total_credit_mut = 0, 0
+operator_credit_info = {'xover_1':[0, 0, 0], 'xover_2':[0, 0, 0], 'xover_3':[0, 0, 0], \
+                        'mut_1':[0, 0, 0], 'mut_2':[0, 0, 0]}
 queue = None
 
 if __name__ ==  '__main__':

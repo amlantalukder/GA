@@ -15,6 +15,7 @@ Number of Genes/Points (7)   :1
 Size of Genes (18)           :200
 Decay                        :0.8
 Queue Length                 :100
+Depth                        :5
 
 Notes:
 
