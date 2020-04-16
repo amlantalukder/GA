@@ -72,20 +72,24 @@ def showPercBar(counter, size, perc, perc_inc=10):
 # -----------------------------------------------
 class Queue:
     def __init__(self, qlen):
-        self.items = []
+        self.items = [None]*qlen
         self.max_len = qlen
+        self.c = 0
 
     def isEmpty(self):
-        return self.items == []
+        return self.c == 0
 
     def isFull(self):
-        return len(self.items) >= self.max_len
+        return self.c >= self.max_len
 
     def enqueue(self, item):
-        self.items.insert(0,item)
+        self.items.insert(self.c,item)
+        self.c += 1
 
     def dequeue(self):
-        return self.items.pop()
+        assert (self.c-1) >= 0, "Error in dequeuing from empty queue"
+        self.c -= 1
+        return self.items[self.c]
 
     def size(self):
-        return len(self.items)
+        return self.c

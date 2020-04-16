@@ -44,9 +44,9 @@ class Chromosome:
     # -----------------------------------------------
     def __init__(self, chromo = None):
 
-        self.raw_fitness = -1
-        self.scl_fitness = -1
-        self.pro_fitness = -1
+        self.raw_fitness = None
+        self.scl_fitness = None
+        self.pro_fitness = None
 
         self.optype = None
         self.p1 = None
@@ -98,8 +98,9 @@ class Chromosome:
     # -----------------------------------------------
     def setOpertorCredit(self):
 
-        level = 1
+        self.credit = dict([[optype, 0] for optype in operator_credit_info])
 
+        level = 1
         nodes = [self]
         while len(nodes) > 0 and level <= params.depth:
 
@@ -109,13 +110,13 @@ class Chromosome:
             for p in nodes:
                 if not p: continue
                 if p.optype:
+                    if p.raw_fitness == None: p.calcFitness()
                     if p.p1 and p.p2:
                         f = max(p.p1.raw_fitness, p.p2.raw_fitness)
                     elif p.p1: f = p.p1.raw_fitness
                     elif p.p2: f = p.p2.raw_fitness
                     else:
                         continue
-                    if p.optype not in self.credit: self.credit[p.optype] = 0
                     self.credit[p.optype] += (p.raw_fitness - f) * params.decay ** (level-1)
 
                 if p.p1: new_nodes.append(p.p1)
@@ -298,7 +299,7 @@ def evolveGeneration(members):
             worst_two_members_info[0] = (members[i].pro_fitness, i)
 
     p_index1 = selectParent(members)
-    p_index2 = p_index1
+    p_index2 = selectParent(members)
     while p_index2 == p_index1:
         p_index2 = selectParent(members)
 
@@ -306,7 +307,7 @@ def evolveGeneration(members):
 
     global queue, operator_credit_info
 
-    #print(total_credit_xover, total_credit_mut, num_xover, num_mut)
+    #print(queue.size(), operator_credit_info)
 
     s = 0
     if queue.isFull():
@@ -349,9 +350,10 @@ def evolveGeneration(members):
 
         if queue.isFull():
             optype, credit = queue.dequeue()
-            for optype in credit:
-                operator_credit_info[optype][0] -= credit[optype]
-                operator_credit_info[optype][1] -= 1
+            operator_credit_info[optype][0] -= credit[optype]
+            operator_credit_info[optype][1] -= 1
+            if operator_credit_info[optype][1] < 0:
+                pdb.set_trace()
 
         queue.enqueue((c.optype, c.credit))
 
@@ -363,7 +365,7 @@ def evolveGeneration(members):
 # -----------------------------------------------
 def runGA(params, verbose=False):
 
-    global queue, total_credit_xover, total_credit_mut, num_xover, num_mut
+    global queue, operator_credit_info
 
     printDec('Problem name: {}'.format(params.problem_type))
 
@@ -385,8 +387,8 @@ def runGA(params, verbose=False):
 
         best_of_run, best_of_run_g = None, -1
 
-        num_xover, num_mut = 0, 0
-        total_credit_xover, total_credit_mut = 0, 0
+        operator_credit_info = {'xover_1': [0, 0, 0], 'xover_2': [0, 0, 0], 'xover_3': [0, 0, 0], \
+                                'mut_1': [0, 0, 0], 'mut_2': [0, 0, 0]}
         queue = Queue(params.qlen)
 
         stats_all_gen = []
