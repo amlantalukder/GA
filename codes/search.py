@@ -181,7 +181,7 @@ def xover(p1, p2):
         c1.chromo = p1.chromo[:xp] + p2.chromo[xp:]
         c2.chromo = p2.chromo[:xp] + p1.chromo[xp:]
 
-    elif xover_type == 2:
+    elif params.xover_type == 2:
         # -----------------------------------------------
         # Select crossover points
         # -----------------------------------------------
