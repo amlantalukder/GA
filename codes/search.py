@@ -105,7 +105,6 @@ class Chromosome:
         while len(nodes) > 0 and level <= params.depth:
 
             new_nodes = []
-            fitness_gain = {}
 
             for p in nodes:
                 if not p: continue
