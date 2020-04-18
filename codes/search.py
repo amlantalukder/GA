@@ -330,7 +330,7 @@ def evolveGeneration(members):
         # If there is any negative value, slide the
         # values to positive
         # -----------------------------------------------
-        a = min(0, min([operator_credit_info[optype][2] for optype in operator_credit_info]))
+        a = abs(min(0, min([operator_credit_info[optype][2] for optype in operator_credit_info])))
         for optype in operator_credit_info:
             operator_credit_info[optype][2] += a
             s += operator_credit_info[optype][2]
