@@ -89,7 +89,7 @@ class Chromosome:
         if params.problem_type == 'OM':
             self.raw_fitness = sum([int(i) for i in self.chromo])
         if params.problem_type == 'BF6':
-            self.raw_fitness = self.calcBinaryF6()
+            self.raw_fitness = Chromosome.calcBinaryF6(self.chromo)
 
     # -----------------------------------------------
     def setOperatorHierarchy(self, optype, p1=None, p2=None):
@@ -147,9 +147,10 @@ class Chromosome:
 
     @staticmethod
     def calcBinaryF6( bitstr ):
+        l = len(bitstr) // 2
         ratioNum = 200 / 4194303
-        x = int(bitstr[:22],2) * ratioNum - 100
-        y = int(bitstr[22:],2) * ratioNum - 100
+        x = int(bitstr[:l],2) * ratioNum - 100
+        y = int(bitstr[l:],2) * ratioNum - 100
         sq = x**2 + y**2
         return (0.5 - (((math.sin(math.sqrt(sq))**2)-0.5) / (1.0 + 0.001 * sq**2)))
 
