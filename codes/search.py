@@ -1,5 +1,6 @@
 from utils import *
 import pdb
+import math
 
 # -----------------------------------------------
 class Parameters:
@@ -85,8 +86,10 @@ class Chromosome:
 
     # -----------------------------------------------
     def calcFitness(self):
-
-        self.raw_fitness = sum([int(i) for i in self.chromo])
+        if params.problem_type == 'OM':
+            self.raw_fitness = sum([int(i) for i in self.chromo])
+        if params.problem_type == 'BF6':
+            self.raw_fitness = self.calcBinaryF6()
 
     # -----------------------------------------------
     def setOperatorHierarchy(self, optype, p1=None, p2=None):
@@ -142,6 +145,15 @@ class Chromosome:
         print(self.scl_fitness)
         print(self.pro_fitness)
 
+    @staticmethod
+    def calcBinaryF6( bitstr ):
+        ratioNum = 200 / 4194303
+        x = int(bitstr[:22],2) * ratioNum - 100
+        y = int(bitstr[22:],2) * ratioNum - 100
+        sq = x**2 + y**2
+        return (0.5 - (((math.sin(math.sqrt(sq))**2)-0.5) / (1.0 + 0.001 * sq**2)))
+
+
 # -----------------------------------------------
 def selectParent(members):
 
@@ -157,8 +169,8 @@ def selectParent(members):
         return -1
 
     elif params.sel_type == 2:
-        tour_size = 0.5
-        tour_prob = 0.5
+        tour_size = 0.02
+        tour_prob = 0.8
 
         tournament = random.sample(range(params.pop_size), int(tour_size*params.pop_size))
         tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)
