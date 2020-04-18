@@ -110,7 +110,6 @@ class Chromosome:
             new_nodes = []
 
             for p in nodes:
-                if not p: continue
                 if p.optype:
                     if p.raw_fitness == None: p.calcFitness()
                     if p.p1 and p.p2:
@@ -326,14 +325,25 @@ def evolveGeneration(members):
         for optype in operator_credit_info:
             total_credit, num = operator_credit_info[optype][:2]
             operator_credit_info[optype][2] = (total_credit/num) if num > 0 else 0
-        a = norm([operator_credit_info[optype][2] for optype in operator_credit_info])
-        s = sum(a)
 
-    if s > 0:
-        i = 0
+        # -----------------------------------------------
+        # If there is any negative value, slide the
+        # values to positive
+        # -----------------------------------------------
+        a = min(0, min([operator_credit_info[optype][2] for optype in operator_credit_info]), 0)
         for optype in operator_credit_info:
-            operator_credit_info[optype][2] = a[i]/s
-            i += 1
+            operator_credit_info[optype][2] += a
+            s += operator_credit_info[optype][2]
+
+    # -----------------------------------------------
+    # Adaptive probabilities for the operators
+    # -----------------------------------------------
+    if s > 0:
+        for optype in operator_credit_info:
+            operator_credit_info[optype][2] /= s
+    # -----------------------------------------------
+    # Default probabilities for the operators
+    # -----------------------------------------------
     else:
         for optype in operator_credit_info:
             operator_credit_info[optype][2] = 1/len(operator_credit_info)
