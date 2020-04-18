@@ -313,11 +313,14 @@ def evolveGeneration(members):
         for optype in operator_credit_info:
             total_credit, num = operator_credit_info[optype][:2]
             operator_credit_info[optype][2] = (total_credit/num) if num > 0 else 0
-            s += operator_credit_info[optype][2]
+        a = norm([operator_credit_info[optype][2] for optype in operator_credit_info])
+        s = sum(a)
 
     if s > 0:
+        i = 0
         for optype in operator_credit_info:
-            operator_credit_info[optype][2] = operator_credit_info[optype][2]/s
+            operator_credit_info[optype][2] = a[i]/s
+            i += 1
     else:
         for optype in operator_credit_info:
             operator_credit_info[optype][2] = 1/len(operator_credit_info)
@@ -379,8 +382,11 @@ def runGA(params, verbose=False):
     best_overall, best_overall_r, best_overall_g = None, -1, -1
 
     stats_overall = []
+    ops_credit_probs = [[] for i in range(params.num_gens+1)]
 
     for r in range(1, params.num_runs+1):
+
+        ops_credit_probs[0] += [optype for optype in operator_credit_info]
 
         members = [Chromosome() for i in range(params.pop_size)]
 
@@ -419,6 +425,8 @@ def runGA(params, verbose=False):
             members = scaleFitness(members)
             members = evolveGeneration(members)
 
+            ops_credit_probs[g] += [operator_credit_info[optype][2] for optype in operator_credit_info]
+
             avg_rf = sum_rf/params.pop_size
             std_dev_rf = math.sqrt(abs(sum_rf_2-sum_rf**2/params.pop_size)/(params.pop_size-1))
 
@@ -449,6 +457,7 @@ def runGA(params, verbose=False):
             best_overall, best_overall_g, best_overall_r = best_of_run.clone(), best_of_run_g, r
 
     writeDataTable(stats_overall, out_file, mode='a')
+    writeDataTable(ops_credit_probs, 'results/operator_probabilities.csv')
     printDec('Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
 
 operator_credit_info = {'xover_1':[0, 0, 0], 'xover_2':[0, 0, 0], 'xover_3':[0, 0, 0], \

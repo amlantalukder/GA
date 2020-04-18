@@ -1,4 +1,5 @@
 import sys, random, math, re
+import numpy as np
 
 # -----------------------------------------------
 def readFile(file_name):
@@ -93,3 +94,13 @@ class Queue:
 
     def size(self):
         return self.c
+
+# -----------------------------------------------
+def norm(a, range=(0, 1), axis=None):
+    range_size = range[1] - range[0]
+
+    a = np.array(a)
+    max_val = np.max(a, axis=axis)
+    min_val = np.min(a, axis=axis)
+
+    return range_size * (a - min_val) / (max_val - min_val) + range[0]

@@ -21,10 +21,10 @@ params = {\
  'Depth'                        :5
 }
 
-gens_per_run = [100]
-pop_sizes = [100]
-qlens = [10, 100]
-decay_values = [0.8]
+gens_per_run = [1000]
+pop_sizes = [300]
+qlens = [10, 50, 100]
+decay_values = [0.1, 0.5, 0.8]
 depths = [2, 5, 10]
 
 for g in gens_per_run:
