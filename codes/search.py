@@ -480,7 +480,7 @@ def runGA(params, verbose=False):
             best_overall, best_overall_g, best_overall_r = best_of_run.clone(), best_of_run_g, r
 
     writeDataTable(stats_overall, out_file, mode='a')
-    writeDataTable(ops_credit_probs, 'results/operator_probabilities.csv')
+    writeDataTable(ops_credit_probs, 'results/ExpID_{}_operator_probabilities.csv'.format(params.exp_id))
     printDec('Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
 
 operator_credit_info = {'xover_1':[0, 0, 0], 'xover_2':[0, 0, 0], 'xover_3':[0, 0, 0], \
