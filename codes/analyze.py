@@ -14,7 +14,7 @@ def plot(x, y, legends, title='', x_label='', y_label='', file_name='plot', erro
 
     for i in range(len(y)):
         if errorbar:
-            ax1.errorbar(x, y[i][0], yerr=y[i][1], errorevery=5, c=colors[i], fmt='o', lw=1)
+            ax1.errorbar(x, y[i][0], yerr=y[i][1], errorevery=50, c=colors[i], fmt='o', lw=1)
         else:
             ax1.plot(x, y[i][0], c=colors[i], ls=line_styles[0], lw=2)
 
@@ -127,7 +127,7 @@ def analyze(file_name, best_fitness = None):
 # -----------------------------------------------
 results_dir = 'results'
 
-
+'''
 ops_probs_file_paths = glob.glob('{}/*operator_probabilities.csv'.format(results_dir))
 
 for ops_probs_file_path in ops_probs_file_paths:
@@ -151,6 +151,7 @@ for ops_probs_file_path in ops_probs_file_paths:
     legends = sorted(data[0].keys())
     y = [[[item[optype][0] for item in data], [item[optype][1] for item in data]] for optype in legends]
     plot(x, y, legends, title='', x_label='New chromosomes', y_label='Probabilities', file_name=ops_probs_file_path[:-3], errorbar=False)
+'''
 
 # -----------------------------------------------
 # Compare results of different GAs defined by
