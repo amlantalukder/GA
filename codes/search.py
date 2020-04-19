@@ -1,5 +1,6 @@
 from utils import *
 import pdb
+import math
 
 # -----------------------------------------------
 class Parameters:
@@ -42,40 +43,53 @@ class Parameters:
 class Chromosome:
 
     # -----------------------------------------------
-    def __init__(self):
+    def __init__(self, chromo=None):
 
-        self.raw_fitness = -1
-        self.scl_fitness = -1
-        self.pro_fitness = -1
+        self.raw_fitness = None
+        self.scl_fitness = None
+        self.pro_fitness = None
 
         self.optype = None
         self.p1 = None
         self.p2 = None
-        self.credit_xover = None
-        self.credit_mut = None
-        
+        self.credit = {}
         self.chromo = ''
-        for i in range(params.num_genes):
-            for j in range(params.gene_size):
-                self.chromo += '0' if random.random() < 0.5 else '1'
+
+        if chromo == None:
+            for i in range(params.num_genes):
+                for j in range(params.gene_size):
+                    self.chromo += '0' if random.random() < 0.5 else '1'
+        else:
+            self.chromo = chromo
 
     # -----------------------------------------------
     def mutate(self):
 
-        assert params.mut_type == 1, 'Error: Invalid mutation type {}'.format(params.mut_type)
+        assert params.mut_type in [1, 2], 'Error: Invalid mutation type {}'.format(params.mut_type)
 
-        x = ''
-        for i in range(params.num_genes * params.gene_size):
-            if random.random() < params.mut_rate:
-                x += '0' if self.chromo[i] == '1' else '0'
-            else:
-                x += self.chromo[i]
-        self.chromo = x
+        # Flip
+        if params.mut_type == 1:
+            x = ''
+            for i in range(len(self.chromo)):
+                if random.random() < params.mut_rate:
+                    x += '0' if self.chromo[i] == '1' else '0'
+                else:
+                    x += self.chromo[i]
+            self.chromo = x
+
+        # Swap
+        elif params.mut_type == 2:
+
+            x = [i for i in self.chromo]
+            random.shuffle(x)
+            self.chromo = ''.join(x)
 
     # -----------------------------------------------
     def calcFitness(self):
-
-        self.raw_fitness = sum([int(i) for i in self.chromo])
+        if params.problem_type == 'OM':
+            self.raw_fitness = sum([int(i) for i in self.chromo])
+        if params.problem_type == 'BF6':
+            self.raw_fitness = Chromosome.calcBinaryF6(self.chromo)
 
     # -----------------------------------------------
     def setOperatorHierarchy(self, optype, p1=None, p2=None):
@@ -86,33 +100,23 @@ class Chromosome:
 
     # -----------------------------------------------
     def setOpertorCredit(self):
-        credit_xover, credit_mut = 0, 0
+
+        self.credit = dict([[optype, 0] for optype in operator_credit_info])
 
         level = 1
-        count_xover, count_mut = (1, 0) if self.optype == 'xover' else (0, 1)
-        credit_xover += count_xover * params.decay ** (level-1)
-        credit_mut += count_mut * params.decay ** (level-1)
+        nodes = [self]
+        while len(nodes) > 0 and level <= params.depth:
 
-        parents = self.p1, self.p2
-        while len(parents) > 0 and level <= params.depth:
-            count_xover, count_mut = 0, 0
-            newparents = []
-            for p in parents:
+            new_nodes = []
+
+            for p in nodes:
                 if not p: continue
-                if p.optype:
-                    if p.optype == 'xover':
-                        count_xover += 1
-                    else:
-                        count_mut += 1
-                if p.p1: newparents.append(p.p1)
-                if p.p2: newparents.append(p.p2)
-            parents = newparents
-            level += 1
-            credit_xover += count_xover * params.decay ** (level-1)
-            credit_mut += count_mut * params.decay ** (level-1)
+                if p.optype: self.credit[p.optype] += params.decay ** (level - 1)
+                if p.p1: new_nodes.append(p.p1)
+                if p.p2: new_nodes.append(p.p2)
 
-        self.credit_xover = credit_xover
-        self.credit_mut = credit_mut
+            nodes = new_nodes
+            level += 1
 
     # -----------------------------------------------
     def clone(self):
@@ -132,9 +136,18 @@ class Chromosome:
         print(self.scl_fitness)
         print(self.pro_fitness)
 
+    @staticmethod
+    def calcBinaryF6(bitstr):
+        l = len(bitstr) // 2
+        ratioNum = 200 / 4194303
+        x = int(bitstr[:l], 2) * ratioNum - 100
+        y = int(bitstr[l:], 2) * ratioNum - 100
+        sq = x ** 2 + y ** 2
+        return (0.5 - (((math.sin(math.sqrt(sq)) ** 2) - 0.5) / (1.0 + 0.001 * sq ** 2)))
+
+
 # -----------------------------------------------
 def selectParent(members):
-
     assert params.sel_type in [1, 2, 3], 'Error: Invalid selection type {}'.format(params.sel_type)
 
     if params.sel_type == 1:
@@ -147,33 +160,34 @@ def selectParent(members):
         return -1
 
     elif params.sel_type == 2:
-        tour_size = 0.5
-        tour_prob = 0.5
+        tour_size = 0.02
+        tour_prob = 0.8
 
-        tournament = random.sample(range(params.pop_size), int(tour_size*params.pop_size))
+        tournament = random.sample(range(params.pop_size), int(tour_size * params.pop_size))
         tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)
-        
+
         for i in range(len(tournament)):
             if random.random() < tour_prob:
                 return tournament[i]
         return tournament[-1]
 
     elif params.sel_type == 3:
-        return random.randint(0, params.pop_size-1)
+        return random.randint(0, params.pop_size - 1)
+
 
 # -----------------------------------------------
 def xover(p1, p2):
-
     assert params.xover_type in [1, 2, 3], 'Error: Invalid cross over type {}'.format(params.xover_type)
 
     c1 = Chromosome()
     c2 = Chromosome()
 
+    # One point
     if params.xover_type == 1:
         # -----------------------------------------------
         # Select crossover point
         # -----------------------------------------------
-        xp = random.randint(0, params.num_genes * params.gene_size-1)
+        xp = random.randint(0, params.num_genes * params.gene_size - 1)
 
         # -----------------------------------------------
         # Create child chromosome from parental material
@@ -181,12 +195,13 @@ def xover(p1, p2):
         c1.chromo = p1.chromo[:xp] + p2.chromo[xp:]
         c2.chromo = p2.chromo[:xp] + p1.chromo[xp:]
 
+    # Two point
     elif params.xover_type == 2:
         # -----------------------------------------------
         # Select crossover points
         # -----------------------------------------------
-        xp1 = random.randint(0, params.num_genes * params.gene_size-1)
-        xp2 = random.randint(0, params.num_genes * params.gene_size-1)
+        xp1 = random.randint(0, params.num_genes * params.gene_size - 1)
+        xp2 = random.randint(0, params.num_genes * params.gene_size - 1)
 
         if xp1 > xp2:
             xp1, xp2 = xp2, xp1
@@ -197,11 +212,31 @@ def xover(p1, p2):
         c1.chromo = p1.chromo[:xp1] + p2.chromo[xp1:xp2] + p1.chromo[xp2:]
         c2.chromo = p2.chromo[:xp1] + p1.chromo[xp1:xp2] + p2.chromo[xp2:]
 
+    # Uniform
+    elif params.xover_type == 2:
+
+        x1, x2 = '', ''
+
+        for i in range(len(p1.chromo)):
+
+            # -----------------------------------------------
+            # Create child chromosome from parental material
+            # -----------------------------------------------
+            if random.random() < 0.5:
+                x1 += p1.chromo[i]
+                x2 += p2.chromo[i]
+            else:
+                x1 += p2.chromo[i]
+                x2 += p1.chromo[i]
+
+        c1 = Chromosome(x1)
+        c2 = Chromosome(x2)
+
     return c1, c2
+
 
 # -----------------------------------------------
 def scaleFitness(members):
-
     assert params.scale_type in [0, 1, 2, 3], 'Error: Invalid fitness scaling type {}'.format(params.scale_type)
 
     sum_sf = 0
@@ -212,7 +247,7 @@ def scaleFitness(members):
 
     elif params.scale_type == 1:
         for i in range(params.pop_size):
-            members[i].scl_fitness = 1/(members[i].raw_fitness + 0.000001)
+            members[i].scl_fitness = 1 / (members[i].raw_fitness + 0.000001)
             sum_sf += members[i].scl_fitness
 
     elif params.scale_type == 2:
@@ -226,15 +261,15 @@ def scaleFitness(members):
         for i in range(params.pop_size):
             members[member_indices[i]].scl_fitness = i
             sum_sf += members[member_indices[i]].scl_fitness
-    
+
     for i in range(params.pop_size):
-        members[i].pro_fitness = members[i].scl_fitness/sum_sf
+        members[i].pro_fitness = members[i].scl_fitness / sum_sf
 
     return members
 
+
 # -----------------------------------------------
 def evolveGeneration(members):
-
     worst_two_members_info = []
 
     for i in range(params.pop_size):
@@ -266,67 +301,87 @@ def evolveGeneration(members):
             worst_two_members_info[0] = (members[i].pro_fitness, i)
 
     p_index1 = selectParent(members)
-    p_index2 = p_index1
+    p_index2 = selectParent(members)
     while p_index2 == p_index1:
         p_index2 = selectParent(members)
 
     p1, p2 = members[p_index1], members[p_index2]
 
-    global queue, total_credit_xover, total_credit_mut, num_xover, num_mut
+    global queue, operator_credit_info
 
-    #print(total_credit_xover, total_credit_mut, num_xover, num_mut)
+    # print(queue.size(), operator_credit_info)
 
+    s = 0
     if queue.isFull():
-        xover_ratio = (total_credit_xover/num_xover) if num_xover > 0 else 0
-        mut_ratio = (total_credit_mut/num_mut) if num_mut > 0 else 0
-        xover_rate = xover_ratio/(xover_ratio + mut_ratio)
-    else:
-        xover_rate = params.xover_rate
+        for optype in operator_credit_info:
+            total_credit, num = operator_credit_info[optype][:2]
+            operator_credit_info[optype][2] = (total_credit / num) if num > 0 else 0
+            s += operator_credit_info[optype][2]
 
-    if random.random() < xover_rate:
-        c1, c2 = xover(p1, p2)
-        c1.setOperatorHierarchy('xover', p1, p2)
-        c2.setOperatorHierarchy('xover', p2, p1)
-        num_xover += 2
-        total_credit_xover += (c1.credit_xover + c2.credit_xover)
+    # -----------------------------------------------
+    # Adaptive probabilities for the operators
+    # -----------------------------------------------
+    if s > 0:
+        for optype in operator_credit_info:
+            operator_credit_info[optype][2] /= s
+    # -----------------------------------------------
+    # Default probabilities for the operators
+    # -----------------------------------------------
     else:
-        c1, c2 = p1.clone(), p2.clone()
-        c1.mutate()
-        c1.setOperatorHierarchy('mut', p1)
-        c2.mutate()
-        c2.setOperatorHierarchy('mut', p2)
-        num_mut += 2
-        total_credit_mut += (c1.credit_mut + c2.credit_mut)
+        for optype in operator_credit_info:
+            operator_credit_info[optype][2] = 1 / len(operator_credit_info)
+
+    toss, r = random.random(), 0
+    for optype in operator_credit_info:
+        if toss < r + operator_credit_info[optype][2]:
+            if optype[:3] == 'xov':
+                params.xover_type = int(optype.split('_')[1])
+                c1, c2 = xover(p1, p2)
+                c1.setOperatorHierarchy(optype, p1, p2)
+                c2.setOperatorHierarchy(optype, p2, p1)
+                operator_credit_info[optype][0] += (c1.credit[optype] + c2.credit[optype])
+                operator_credit_info[optype][1] += 2
+                break
+            elif optype[:3] == 'mut':
+                params.mut_type = int(optype.split('_')[1])
+                c1, c2 = p1.clone(), p2.clone()
+                c1.mutate()
+                c1.setOperatorHierarchy(optype, p1)
+                c2.mutate()
+                c2.setOperatorHierarchy(optype, p2)
+                operator_credit_info[optype][0] += (c1.credit[optype] + c2.credit[optype])
+                operator_credit_info[optype][1] += 2
+                break
+        r += operator_credit_info[optype][2]
 
     for c in [c1, c2]:
 
         if queue.isFull():
-            optype, credit_xover, credit_mut = queue.dequeue()
-            total_credit_xover -= credit_xover
-            total_credit_mut -= credit_mut
-            if optype == 'xover':
-                num_xover -= 1
-            elif optype == 'mut':
-                num_mut -= 1
+            optype, credit = queue.dequeue()
+            operator_credit_info[optype][0] -= credit[optype]
+            operator_credit_info[optype][1] -= 1
+            if operator_credit_info[optype][1] < 0:
+                pdb.set_trace()
 
-        queue.enqueue((c.optype, c.credit_xover, c.credit_mut))
+        queue.enqueue((c.optype, c.credit))
 
     members[worst_two_members_info[0][1]] = c1
     members[worst_two_members_info[1][1]] = c2
 
     return members
 
+
 # -----------------------------------------------
 def runGA(params, verbose=False):
-
-    global queue, total_credit_xover, total_credit_mut, num_xover, num_mut
+    global queue, operator_credit_info
 
     printDec('Problem name: {}'.format(params.problem_type))
 
     out_file = 'results/{}_summary.csv'.format(params.exp_id)
     writeFile(out_file, '')
+    ops_probs_out_file = 'results/{}_operator_probabilities.csv'.format(params.exp_id)
     random.seed(params.random_seed)
-    min_or_max  = 'max' if params.scale_type in [0, 2] else 'min'
+    min_or_max = 'max' if params.scale_type in [0, 2] else 'min'
 
     # -----------------------------------------------
     # Run GA
@@ -334,22 +389,24 @@ def runGA(params, verbose=False):
     best_overall, best_overall_r, best_overall_g = None, -1, -1
 
     stats_overall = []
+    ops_credit_probs = [[] for i in range(params.num_gens + 1)]
 
-    for r in range(1, params.num_runs+1):
+    for r in range(1, params.num_runs + 1):
+
+        ops_credit_probs[0] += [optype for optype in operator_credit_info]
 
         members = [Chromosome() for i in range(params.pop_size)]
 
         best_of_run, best_of_run_g = None, -1
 
-        num_xover, num_mut = 0, 0
-        total_credit_xover, total_credit_mut = 0, 0
+        operator_credit_info = {'xover_1': [0, 0, 0], 'mut_1': [0, 0, 0]}
         queue = Queue(params.qlen)
 
         stats_all_gen = []
 
         perc = 10
 
-        for g in range(1, params.num_gens+1):
+        for g in range(1, params.num_gens + 1):
 
             if not verbose: perc = showPercBar(g, params.num_gens, perc)
 
@@ -366,26 +423,26 @@ def runGA(params, verbose=False):
                 sum_rf_2 += members[i].raw_fitness ** 2
 
                 if best_of_gen == None or \
-                   (min_or_max == 'max' and best_of_gen.raw_fitness < members[i].raw_fitness) or \
-                   (min_or_max == 'min' and best_of_gen.raw_fitness > members[i].raw_fitness):
-
+                        (min_or_max == 'max' and best_of_gen.raw_fitness < members[i].raw_fitness) or \
+                        (min_or_max == 'min' and best_of_gen.raw_fitness > members[i].raw_fitness):
                     best_of_gen = members[i].clone()
 
             members = scaleFitness(members)
             members = evolveGeneration(members)
 
-            avg_rf = sum_rf/params.pop_size
-            std_dev_rf = math.sqrt(abs(sum_rf_2-sum_rf**2/params.pop_size)/(params.pop_size-1))
+            ops_credit_probs[g] += [operator_credit_info[optype][2] for optype in operator_credit_info]
+
+            avg_rf = sum_rf / params.pop_size
+            std_dev_rf = math.sqrt(abs(sum_rf_2 - sum_rf ** 2 / params.pop_size) / (params.pop_size - 1))
 
             if verbose: print('{}\t{}\t{}\t{}\t{}'.format(r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf))
 
             stats_all_gen.append([r, g, best_of_gen.raw_fitness, avg_rf, std_dev_rf])
 
             if best_of_gen != None and \
-               (best_of_run == None or \
-               (min_or_max == 'max' and best_of_run.raw_fitness < best_of_gen.raw_fitness) or \
-               (min_or_max == 'min' and best_of_run.raw_fitness > best_of_gen.raw_fitness)):
-
+                    (best_of_run == None or \
+                     (min_or_max == 'max' and best_of_run.raw_fitness < best_of_gen.raw_fitness) or \
+                     (min_or_max == 'min' and best_of_run.raw_fitness > best_of_gen.raw_fitness)):
                 best_of_run, best_of_run_g = best_of_gen.clone(), g
 
         stats_all_gen.append([])
@@ -397,20 +454,21 @@ def runGA(params, verbose=False):
         stats_overall.append([r, best_of_run_g, best_of_run.raw_fitness])
 
         if best_of_run != None and \
-           (best_overall == None or \
-           (min_or_max == 'max' and best_overall.raw_fitness < best_of_run.raw_fitness) or \
-           (min_or_max == 'min' and best_overall.raw_fitness > best_of_run.raw_fitness)):
-
+                (best_overall == None or \
+                 (min_or_max == 'max' and best_overall.raw_fitness < best_of_run.raw_fitness) or \
+                 (min_or_max == 'min' and best_overall.raw_fitness > best_of_run.raw_fitness)):
             best_overall, best_overall_g, best_overall_r = best_of_run.clone(), best_of_run_g, r
 
     writeDataTable(stats_overall, out_file, mode='a')
-    printDec('Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
+    writeDataTable(ops_credit_probs, ops_probs_out_file)
+    printDec(
+        'Best Run: {}, Best gen: {}, Best fitness: {}'.format(best_overall_r, best_overall_g, best_overall.raw_fitness))
 
-num_xover, num_mut = 0, 0
-total_credit_xover, total_credit_mut = 0, 0
+
+operator_credit_info = {'xover_1': [0, 0, 0], 'mut_1': [0, 0, 0]}
 queue = None
 
-if __name__ ==  '__main__':
+if __name__ == '__main__':
 
     # -----------------------------------------------
     # Load parameters
@@ -427,10 +485,3 @@ if __name__ ==  '__main__':
     params = Parameters(getSettings(param_file))
 
     runGA(params, verbose)
-
-
-
-
-
-
-    
