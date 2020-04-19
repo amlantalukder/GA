@@ -129,7 +129,6 @@ def analyze(file_name, best_fitness = None):
 # -----------------------------------------------
 results_dir = 'results'
 
-'''
 ops_probs_file_paths = glob.glob('{}/*operator_probabilities.csv'.format(results_dir))
 
 for ops_probs_file_path in ops_probs_file_paths:
@@ -153,7 +152,6 @@ for ops_probs_file_path in ops_probs_file_paths:
     legends = sorted(data[0].keys())
     y = [[[item[optype][0] for item in data], [item[optype][1] for item in data]] for optype in legends]
     plot(x, y, legends, title='', x_label='New chromosomes', y_label='Probabilities', file_name=ops_probs_file_path[:-3], errorbar=False)
-'''
 
 # -----------------------------------------------
 # Compare results of different GAs defined by
