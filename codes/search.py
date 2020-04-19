@@ -321,8 +321,8 @@ def evolveGeneration(members):
     #print(queue.size(), operator_credit_info)
 
     s = 0
-    minPosVal = 10000 #float('inf')
     if queue.isFull():
+        minPosVal = 10000  # float('inf')
         for optype in operator_credit_info:
             total_credit, num = operator_credit_info[optype][:2]
             operator_credit_info[optype][2] = (total_credit/num) if num > 0 else 0

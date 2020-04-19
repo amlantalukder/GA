@@ -120,7 +120,7 @@ def analyze(file_name, best_fitness = None):
             print('Earliest generation to achieve best fitness: ', best_indices[0])
             print('Best fitness achieving generation stats: ', mean_confidence_interval(best_indices))
 
-    return x, [y[0], y[2]], [legends[0], legends[2]]
+    return x, y, legends
 
 
 # -----------------------------------------------
