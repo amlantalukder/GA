@@ -321,18 +321,18 @@ def evolveGeneration(members):
     #print(queue.size(), operator_credit_info)
 
     s = 0
+    minPosVal = 10000 #float('inf')
     if queue.isFull():
         for optype in operator_credit_info:
             total_credit, num = operator_credit_info[optype][:2]
             operator_credit_info[optype][2] = (total_credit/num) if num > 0 else 0
+            if 0 < operator_credit_info[optype][2] and operator_credit_info[optype][2] < minPosVal:
+                minPosVal = operator_credit_info[optype][2]
 
-        # -----------------------------------------------
-        # If there is any negative value, slide the
-        # values to positive
-        # -----------------------------------------------
-        a = abs(min(0, min([operator_credit_info[optype][2] for optype in operator_credit_info])))
         for optype in operator_credit_info:
-            operator_credit_info[optype][2] += a
+            if operator_credit_info[optype][2] == 0:
+                operator_credit_info[optype][2] = minPosVal /2 
+            operator_credit_info[optype][2] = -1/operator_credit_info[optype][2] if operator_credit_info[optype][2] < 0 else operator_credit_info[optype][2]
             s += operator_credit_info[optype][2]
 
     # -----------------------------------------------
