@@ -12,9 +12,11 @@ def plot(x, y, legends, title='', x_label='', y_label='', file_name='plot', erro
     line_styles = ['-', ':']
     colors = ['k', 'b', 'r', 'g', 'y']
 
+    error_every = max(1, len(x)/100)
+
     for i in range(len(y)):
         if errorbar:
-            ax1.errorbar(x, y[i][0], yerr=y[i][1], errorevery=50, c=colors[i], fmt='o', lw=1)
+            ax1.errorbar(x, y[i][0], yerr=y[i][1], errorevery=error_every, c=colors[i], fmt='o', lw=1)
         else:
             ax1.plot(x, y[i][0], c=colors[i], ls=line_styles[0], lw=2)
 
