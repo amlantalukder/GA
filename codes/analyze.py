@@ -1,4 +1,4 @@
-import pdb, re, os
+import pdb, glob
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats
@@ -94,8 +94,7 @@ def analyze(file_name, best_fitness = None):
          [[np.average([stats[i][j][1] for i in range(num_runs)]) for j in range(num_gens)], \
          [np.std([stats[i][j][1] for i in range(num_runs)]) for j in range(num_gens)]]]
     legends = ['Avg best fitness', 'Std dev (best fitness)', 'Avg avg fitness', 'Std dev (avg fitness)']
-    plot_file_name = file_name.split('/')[-1][:-3]
-    plot(x, y, legends, title='', x_label='Number of generations', y_label='Fitness', file_name='{}/{}'.format(results_dir, plot_file_name))
+    plot(x, y, legends, title='', x_label='Number of generations', y_label='Fitness', file_name=file_name[:-3])
 
     # -----------------------------------------------
     # Average best fitness and standard deviation
@@ -129,12 +128,11 @@ def analyze(file_name, best_fitness = None):
 results_dir = 'results'
 
 
-ops_probs_file_paths = [f for f in os.listdir(results_dir) \
-                 if os.path.isfile(os.path.join(results_dir, f)) and f.split('_')[-1] == 'probabilities.csv']
+ops_probs_file_paths = glob.glob('{}/*operator_probabilities.csv'.format(results_dir))
 
 for ops_probs_file_path in ops_probs_file_paths:
 
-    ops_credit_probs = readDataTable('{}/{}'.format(results_dir, ops_probs_file_path))
+    ops_credit_probs = readDataTable(ops_probs_file_path)
 
     data = []
     for i in range(1, len(ops_credit_probs)):
@@ -152,7 +150,7 @@ for ops_probs_file_path in ops_probs_file_paths:
     x = range(1, len(data)+1)
     legends = sorted(data[0].keys())
     y = [[[item[optype][0] for item in data], [item[optype][1] for item in data]] for optype in legends]
-    plot(x, y, legends, title='', x_label='New chromosomes', y_label='Probabilities', file_name='{}/{}'.format(results_dir, ops_probs_file_paths.split('.')[0]), errorbar=False)
+    plot(x, y, legends, title='', x_label='New chromosomes', y_label='Probabilities', file_name=ops_probs_file_path[:-3], errorbar=False)
 
 # -----------------------------------------------
 # Compare results of different GAs defined by
@@ -160,12 +158,11 @@ for ops_probs_file_path in ops_probs_file_paths:
 # -----------------------------------------------
 y_all, legends_all = [], []
 
-summary_file_paths = [f for f in os.listdir(results_dir) \
-                 if os.path.isfile(os.path.join(results_dir, f)) and f.split('_')[-1] == 'summary.csv']
+summary_file_paths = glob.glob('{}/*summary.csv'.format(results_dir))
 
 for summary_file_path in summary_file_paths:
     info = [item.split('-') for item in summary_file_path.split('_')[1:-1]]
-    x, y, l = analyze('{}/{}'.format(results_dir, summary_file_path))
+    x, y, l = analyze(summary_file_path)
     y_all += y
     legends_all += ['{} ({})'.format(item, formatDataTable(info, ' ', ',')) for item in l]
 
