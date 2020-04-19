@@ -12,7 +12,7 @@ params = {\
  'Crossover Type (3)'           :1, \
  'Crossover Rate (4)'           :0.8, \
  'Mutation Type (5)'            :1, \
- 'Mutation Rate (6)'            :0.001, \
+ 'Mutation Rate (6)'            :0.005, \
  'Random Number Seed'           :75982, \
  'Number of Genes/Points (7)'   :1, \
  'Size of Genes (18)'           :200, \
@@ -21,11 +21,11 @@ params = {\
  'Depth'                        :5
 }
 
-gens_per_run = [100]
-pop_sizes = [100]
-qlens = [10, 100]
-decay_values = [0.8]
-depths = [2, 5, 10]
+gens_per_run = [5000]
+pop_sizes = [300]
+qlens = [10, 500]
+decay_values = [0.5, 0.95]
+depths = [1, 8]
 
 for g in gens_per_run:
  params['Generations per Run'] = g
