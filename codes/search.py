@@ -160,8 +160,8 @@ def selectParent(members):
         return -1
 
     elif params.sel_type == 2:
-        tour_size = 0.02
-        tour_prob = 0.8
+        tour_size = 0.1
+        tour_prob = 1
 
         tournament = random.sample(range(params.pop_size), int(tour_size * params.pop_size))
         tournament = sorted(tournament, key=lambda i: members[i].pro_fitness, reverse=True)

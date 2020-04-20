@@ -21,8 +21,8 @@ params = {\
  'Depth'                        :5
 }
 
-#experiment_prefix = "onemax"
-experiment_prefix = "BF6"
+experiment_prefix = "onemax"
+#experiment_prefix = "BF6"
 
 if experiment_prefix == 'BF6':
  params['Problem Type'] = 'BF6'
@@ -32,10 +32,10 @@ elif experiment_prefix == 'onemax':
  params['Size of Genes (18)'] = 200
 
 gens_per_run = [5000]
-pop_sizes = [300]
-qlens = [10, 500]
-decay_values = [0.5, 0.95]
-depths = [1, 8]
+pop_sizes = [100] #[300]
+qlens = [100] #[10, 500]
+decay_values = [0.8] #[0.5, 0.95]
+depths = [5] #[1, 8]
 
 for g in gens_per_run:
  params['Generations per Run'] = g

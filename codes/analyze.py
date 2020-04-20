@@ -33,12 +33,13 @@ def plotComparison(x, y, legends, title='', x_label='', y_label='', file_name='p
     fig1, ax1 = plt.subplots(figsize=(20, 10))
     ax1.set_title(title, fontsize=28)
 
-    colors = ['g', 'b']
     line_styles = ['-', ':']
+    colors = ['k', 'b', 'r', 'g', 'y', 'c', 'm', '#8844bb', '#0e0e0f']
+
+    error_every = max(1, len(x) / 100)
 
     for i in range(len(y)):
-        ax1.errorbar(x, y[i][0], yerr=y[i][1], c=colors[i], ls=line_styles[0], lw=2)
-        ax1.errorbar(x, y[i][2], yerr=y[i][3], c=colors[i], ls=line_styles[1], lw=2)
+        ax1.errorbar(x, y[i][0], yerr=y[i][1], errorevery=error_every, c=colors[i%len(colors)], fmt='o', lw=1)
 
     ax1.margins(0)
     ax1.legend(legends, bbox_to_anchor=(1, 0.5), loc='center left', fontsize=20)
@@ -134,7 +135,7 @@ def analyze(file_name, best_fitness = None):
             print('Earliest generation to achieve best fitness: ', best_indices[0])
             print('Best fitness achieving generation stats: ', mean_confidence_interval(best_indices))
 
-    return x, y, legends, best_fitness_all_runs, avg_earliest_gen_of_best_fitness
+    return x, [y[0]], [legends[:2]], best_fitness_all_runs, avg_earliest_gen_of_best_fitness
 
 
 # -----------------------------------------------
@@ -186,7 +187,7 @@ for problem_name in ['BF6', 'onemax']:
         if not best_result or best_result[1] < b or best_result[1] == b and best_result[2] > e:
             best_result = [counter, b, e]
         y_all += y
-        legends_all += ['{} ({})'.format(item, formatDataTable(info, ' ', ',')) for item in l]
+        legends_all += [formatDataTable(info, ' ', ',')]
         counter += 1
 
     print('The best fitness {} is achieved in earliest gen {} by {}'.format(best_result[1], best_result[2], summary_file_paths[best_result[0]]))
@@ -195,6 +196,6 @@ for problem_name in ['BF6', 'onemax']:
     # Plot the results of different GAs defined by
     # different param files
     # -----------------------------------------------
-    #plotComparison(x, y_all, legends_all, title='', \
-     #              x_label='Number of generations', y_label='Fitness', \
-      #             file_name='{}/comparison'.format(results_dir))
+    plotComparison(x, y_all, legends_all, title='', \
+                   x_label='Number of generations', y_label='Fitness', \
+                   file_name='{}/{}_comparison'.format(results_dir, problem_name))
