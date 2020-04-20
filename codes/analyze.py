@@ -102,8 +102,21 @@ def analyze(file_name, best_fitness = None):
     # Average best fitness and standard deviation
     # over all runs
     # -----------------------------------------------
-    best_fitness_all_runs = [max([stats[i][j][0] for j in range(num_gens)]) for i in range(num_runs)]
-    print(mean_confidence_interval(best_fitness_all_runs))
+    best_fitness_stats_all_runs = [max([stats[i][j][0] for j in range(num_gens)]) for i in range(num_runs)]
+    print(mean_confidence_interval(best_fitness_stats_all_runs))
+
+    best_fitness_all_runs = max(best_fitness_stats_all_runs)
+    best_gens_in_all_runs = []
+    for i in range(num_runs):
+        earliest_gen = -1
+        for j in range(num_gens):
+            if stats[i][j][0] == best_fitness_all_runs and (earliest_gen == -1 or j < earliest_gen):
+                earliest_gen = j
+
+        if earliest_gen >= 0:
+            best_gens_in_all_runs.append(earliest_gen)
+
+    avg_earliest_gen_of_best_fitness = int(np.average(best_gens_in_all_runs))
 
     # print(best_individual)
     # print('Best individual {}, best fitness {}'.format(best_individual, best_fitness))
@@ -121,7 +134,7 @@ def analyze(file_name, best_fitness = None):
             print('Earliest generation to achieve best fitness: ', best_indices[0])
             print('Best fitness achieving generation stats: ', mean_confidence_interval(best_indices))
 
-    return x, y, legends
+    return x, y, legends, best_fitness_all_runs, avg_earliest_gen_of_best_fitness
 
 
 # -----------------------------------------------
@@ -153,24 +166,35 @@ for ops_probs_file_path in ops_probs_file_paths:
     y = [[[item[optype][0] for item in data], [item[optype][1] for item in data]] for optype in legends]
     plot(x, y, legends, title='', x_label='New chromosomes', y_label='Probabilities', file_name=ops_probs_file_path[:-3], errorbar=False)
 
-# -----------------------------------------------
-# Compare results of different GAs defined by
-# different param files
-# -----------------------------------------------
-y_all, legends_all = [], []
+for problem_name in ['BF6', 'onemax']:
 
-summary_file_paths = glob.glob('{}/*summary.csv'.format(results_dir))
+    printDec(problem_name)
 
-for summary_file_path in summary_file_paths:
-    info = [item.split('-') for item in summary_file_path.split('_')[1:-1]]
-    x, y, l = analyze(summary_file_path)
-    y_all += y
-    legends_all += ['{} ({})'.format(item, formatDataTable(info, ' ', ',')) for item in l]
+    # -----------------------------------------------
+    # Compare results of different GAs defined by
+    # different param files
+    # -----------------------------------------------
+    y_all, legends_all = [], []
 
-# -----------------------------------------------
-# Plot the results of different GAs defined by
-# different param files
-# -----------------------------------------------
-#plotComparison(x, y_all, legends_all, title='', \
- #              x_label='Number of generations', y_label='Fitness', \
-  #             file_name='{}/comparison'.format(results_dir))
+    summary_file_paths = glob.glob('{}/{}*summary.csv'.format(results_dir, problem_name))
+
+    best_result = None
+    counter = 0
+    for summary_file_path in summary_file_paths:
+        info = [item.split('-') for item in summary_file_path.split('_')[1:-1]]
+        x, y, l, b, e = analyze(summary_file_path)
+        if not best_result or best_result[1] < b or best_result[1] == b and best_result[2] > e:
+            best_result = [counter, b, e]
+        y_all += y
+        legends_all += ['{} ({})'.format(item, formatDataTable(info, ' ', ',')) for item in l]
+        counter += 1
+
+    print('The best fitness {} is achieved in earliest gen {} by {}'.format(best_result[1], best_result[2], summary_file_paths[best_result[0]]))
+
+    # -----------------------------------------------
+    # Plot the results of different GAs defined by
+    # different param files
+    # -----------------------------------------------
+    #plotComparison(x, y_all, legends_all, title='', \
+     #              x_label='Number of generations', y_label='Fitness', \
+      #             file_name='{}/comparison'.format(results_dir))
