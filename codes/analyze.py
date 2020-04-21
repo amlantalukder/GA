@@ -1,8 +1,10 @@
-import pdb, re, os
+import pdb, glob
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats
 from utils import *
+
+legendMap = {'mut_1':'Flip Mutation','mut_2':'Swap Mutation','xover_1':'One-point Xover','xover_2':'Two-point Xover','xover_3':'Uniform Xover'}
 
 # -------------------------------------------
 def plot(x, y, legends, title='', x_label='', y_label='', file_name='plot', errorbar=True):
@@ -12,16 +14,19 @@ def plot(x, y, legends, title='', x_label='', y_label='', file_name='plot', erro
     line_styles = ['-', ':']
     colors = ['k', 'b', 'r', 'g', 'y']
 
+    error_every = max(1, len(x)/100)
+
     for i in range(len(y)):
         if errorbar:
-            ax1.errorbar(x, y[i][0], yerr=y[i][1], c=colors[i], ls=line_styles[0], lw=2)
+            ax1.errorbar(x, y[i][0], yerr=y[i][1], errorevery=error_every,  fmt='o', lw=1)
         else:
-            ax1.plot(x, y[i][0], c=colors[i], ls=line_styles[0], lw=2)
+            ax1.plot(x, y[i][0], ls=line_styles[0], lw=2)
 
     ax1.legend(legends, fontsize=20)
     ax1.set_xlabel(x_label, fontsize=25)
     ax1.set_ylabel(y_label, fontsize=25)
     ax1.tick_params(axis='both', which='major', labelsize=20)
+    plt.xlim(0,2000)
 
     plt.savefig(file_name)
     plt.close()
@@ -31,18 +36,20 @@ def plotComparison(x, y, legends, title='', x_label='', y_label='', file_name='p
     fig1, ax1 = plt.subplots(figsize=(20, 10))
     ax1.set_title(title, fontsize=28)
 
-    colors = ['g', 'b']
     line_styles = ['-', ':']
+    colors = ['k', 'b', 'r', 'g', 'y', 'c', 'm', '#8844bb', '#0e0e0f']
+
+    error_every = max(1, len(x) / 100)
 
     for i in range(len(y)):
-        ax1.errorbar(x, y[i][0], yerr=y[i][1], c=colors[i], ls=line_styles[0], lw=2)
-        ax1.errorbar(x, y[i][2], yerr=y[i][3], c=colors[i], ls=line_styles[1], lw=2)
+        ax1.errorbar(x, y[i][0], yerr=y[i][1], errorevery=error_every, fmt='o', lw=1)
 
     ax1.margins(0)
     ax1.legend(legends, bbox_to_anchor=(1, 0.5), loc='center left', fontsize=20)
     ax1.set_xlabel(x_label, fontsize=25)
     ax1.set_ylabel(y_label, fontsize=25)
     ax1.tick_params(axis='both', which='major', labelsize=20)
+    plt.xlim(0,2000)
     plt.subplots_adjust(right=0.7)
     plt.savefig(file_name)
     plt.close()
@@ -94,15 +101,27 @@ def analyze(file_name, best_fitness = None):
          [[np.average([stats[i][j][1] for i in range(num_runs)]) for j in range(num_gens)], \
          [np.std([stats[i][j][1] for i in range(num_runs)]) for j in range(num_gens)]]]
     legends = ['Avg best fitness', 'Std dev (best fitness)', 'Avg avg fitness', 'Std dev (avg fitness)']
-    plot_file_name = file_name.split('/')[-1][:-3]
-    plot(x, y, legends, title='', x_label='Number of generations', y_label='Fitness', file_name='{}/{}'.format(results_dir, plot_file_name))
+    plot(x, y, legends, title='', x_label='Number of generations', y_label='Fitness', file_name=file_name[:-3])
 
     # -----------------------------------------------
     # Average best fitness and standard deviation
     # over all runs
     # -----------------------------------------------
-    best_fitness_all_runs = [max([stats[i][j][0] for j in range(num_gens)]) for i in range(num_runs)]
-    print(mean_confidence_interval(best_fitness_all_runs))
+    best_fitness_stats_all_runs = [max([stats[i][j][0] for j in range(num_gens)]) for i in range(num_runs)]
+    print(mean_confidence_interval(best_fitness_stats_all_runs))
+
+    best_fitness_all_runs = max(best_fitness_stats_all_runs)
+    best_gens_in_all_runs = []
+    for i in range(num_runs):
+        earliest_gen = -1
+        for j in range(num_gens):
+            if stats[i][j][0] == best_fitness_all_runs and (earliest_gen == -1 or j < earliest_gen):
+                earliest_gen = j
+
+        if earliest_gen >= 0:
+            best_gens_in_all_runs.append(earliest_gen)
+
+    avg_earliest_gen_of_best_fitness = int(np.average(best_gens_in_all_runs))
 
     # print(best_individual)
     # print('Best individual {}, best fitness {}'.format(best_individual, best_fitness))
@@ -120,7 +139,7 @@ def analyze(file_name, best_fitness = None):
             print('Earliest generation to achieve best fitness: ', best_indices[0])
             print('Best fitness achieving generation stats: ', mean_confidence_interval(best_indices))
 
-    return x, y, legends
+    return x, [y[0]], [legends[:2]], best_fitness_all_runs, avg_earliest_gen_of_best_fitness
 
 
 # -----------------------------------------------
@@ -128,46 +147,60 @@ def analyze(file_name, best_fitness = None):
 # -----------------------------------------------
 results_dir = 'results'
 
-ops_credit_probs = readDataTable('{}/operator_probabilities.csv'.format(results_dir))
+ops_probs_file_paths = glob.glob('{}/*operator_probabilities.csv'.format(results_dir))
 
-data = []
-for i in range(1, len(ops_credit_probs)):
-    op_wise_score = {}
-    for j in range(len(ops_credit_probs[i])):
-        optype = ops_credit_probs[0][j]
-        if optype not in op_wise_score:
-            op_wise_score[optype] = [float(ops_credit_probs[i][j])]
-        else:
-            op_wise_score[optype].append(float(ops_credit_probs[i][j]))
+for ops_probs_file_path in ops_probs_file_paths:
 
-    op_wise_score = dict([[optype, [np.average(op_wise_score[optype]), np.std(op_wise_score[optype])]] for optype in op_wise_score])
-    data.append(op_wise_score)
+    ops_credit_probs = readDataTable(ops_probs_file_path)
 
-x = range(1, len(data)+1)
-legends = sorted(data[0].keys())
-y = [[[item[optype][0] for item in data], [item[optype][1] for item in data]] for optype in legends]
-plot(x, y, legends, title='', x_label='New chromosomes', y_label='Probabilities', file_name='{}/operator_evolution'.format(results_dir), errorbar=False)
+    data = []
+    for i in range(1, len(ops_credit_probs)):
+        op_wise_score = {}
+        for j in range(len(ops_credit_probs[i])):
+            optype = ops_credit_probs[0][j]
+            if optype not in op_wise_score:
+                op_wise_score[optype] = [float(ops_credit_probs[i][j])]
+            else:
+                op_wise_score[optype].append(float(ops_credit_probs[i][j]))
 
+        op_wise_score = dict([[optype, [np.average(op_wise_score[optype]), np.std(op_wise_score[optype])]] for optype in op_wise_score])
+        data.append(op_wise_score)
 
-# -----------------------------------------------
-# Compare results of different GAs defined by
-# different param files
-# -----------------------------------------------
-y_all, legends_all = [], []
+    x = range(1, len(data)+1)
+    legends = sorted(data[0].keys())
+    y = [[[item[optype][0] for item in data], [item[optype][1] for item in data]] for optype in legends]
+    legendNames = [ legendMap[v] for v in legends ]
+    plot(x, y, legendNames, title='', x_label='New chromosomes', y_label='Probabilities', file_name=ops_probs_file_path[:-3], errorbar=False)
 
-summary_file_paths = [f for f in os.listdir(results_dir) \
-                 if os.path.isfile(os.path.join(results_dir, f)) and f.split('_')[-1] == 'summary.csv']
+for problem_name in ['BF6', 'onemax']:
 
-for summary_file_path in summary_file_paths:
-    info = [item.split('-') for item in summary_file_path.split('_')[1:-1]]
-    x, y, l = analyze('{}/{}'.format(results_dir, summary_file_path))
-    y_all += y
-    legends_all += ['{} ({})'.format(item, formatDataTable(info, ' ', ',')) for item in l]
+    printDec(problem_name)
 
-# -----------------------------------------------
-# Plot the results of different GAs defined by
-# different param files
-# -----------------------------------------------
-#plotComparison(x, y_all, legends_all, title='', \
- #              x_label='Number of generations', y_label='Fitness', \
-  #             file_name='{}/comparison'.format(results_dir))
+    # -----------------------------------------------
+    # Compare results of different GAs defined by
+    # different param files
+    # -----------------------------------------------
+    y_all, legends_all = [], []
+
+    summary_file_paths = glob.glob('{}/{}*summary.csv'.format(results_dir, problem_name))
+
+    best_result = None
+    counter = 0
+    for summary_file_path in summary_file_paths:
+        info = [item.split('-') for item in summary_file_path.split('_')[1:-1]]
+        x, y, l, b, e = analyze(summary_file_path)
+        if not best_result or best_result[1] < b or best_result[1] == b and best_result[2] > e:
+            best_result = [counter, b, e]
+        y_all += y
+        legends_all += [formatDataTable(info, ' ', ',')]
+        counter += 1
+
+    print('The best fitness {} is achieved in earliest gen {} by {}'.format(best_result[1], best_result[2], summary_file_paths[best_result[0]]))
+
+    # -----------------------------------------------
+    # Plot the results of different GAs defined by
+    # different param files
+    # -----------------------------------------------
+    plotComparison(x, y_all, legends_all, title='', \
+                   x_label='Number of generations', y_label='Fitness', \
+                   file_name='{}/{}_comparison'.format(results_dir, problem_name))
