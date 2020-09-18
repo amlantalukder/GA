@@ -8,5 +8,7 @@ In a Steady State GA (SSGA), a new generation is created by replacingonly the wo
 
 How to run
 -----------------------------------------------------------
-1. run this command "python codes/search.py <problem_name>.params"
-2. use "1" as additional argument to print more details "python codes/search.py <problem_name>.params 1"
+1. run this command 
+  "python codes/search.py <problem_name>.params"
+2. use "1" as additional argument to print more details 
+  "python codes/search.py <problem_name>.params 1"
